@@ -1,0 +1,143 @@
+{% extends "base.html" %}
+
+{% block title %}{{title}}{% endblock %}
+{% block keywords %}readable feeds, readability feed, rss feed, atom feed{% endblock %}" />
+{% block description %}Readable Feeds makes reading your feeds quicker and easier by filtering out ads and other junk from your feeds and pulling in the full content for each entry.{% endblock %}
+
+{% block extrahdrs %}
+<link rel="stylesheet" href="/css/readability.css?v=1" type="text/css" media="screen, projection">
+{% endblock %}
+
+
+{% block content %}
+
+<table id="index" class="content" cellpadding="0" cellspacing="0" align="left">
+	<tr><td>
+	
+	<div class="span-24 last">
+		<div id="feed-create" class="last">
+			<form method="get" action="feed">
+		
+		<table id="shares" cellpadding="0" cellspacing="0" align="left" style="float:right;font-size:0.7em;padding-top:10px;">
+		  <tr>
+			<td class="share">
+				<a href="http://www.facebook.com/share.php?u={{ urlquote(url) }}">
+				<img src="/images/facebook.png" alt="Share on Facebook" />
+				<br /><span>Facebook</span></a>
+			</td>
+			<td class="share">
+				<a href="http://del.icio.us/post?url={{ urlquote(url) }}&title={{ urlquote(title) }}">
+				<img src="/images/delicious.png" alt="Bookmark on Delicious" />
+				<br /><span>delicious</span></a>
+			</td>
+			<td class="share">
+				<a href="http://www.stumbleupon.com/submit?url={{ urlquote(url) }}&title={{ urlquote(title) }}">
+				<img src="/images/stumbleupon.png" alt="Share on StumbleUpon" />
+				<br /><span>StumbleUpon</span></a>
+			</td>
+			<td class="share">
+				<a href="http://twitter.com/andrewtrusty">
+				<img src="/images/twitter.png" alt="Follow on Twitter" />
+				<br /><span>Twitter</span></a>
+			</td>
+		  </tr>
+		</table>
+		
+				<h2><span style="color:#449C3A;font-weight:bold;">Readable</span> Feeds</h2>
+		
+				<br />
+				Feed URL &nbsp;<input type="text" name="url" value="http://" />
+				&nbsp;
+				<button type="submit" class="positive">Create</button>
+				</div>
+			</form>
+			
+		
+		</div>
+	</div>	
+	
+	
+	<div class="span-12 last">
+		<div class="intro" class="" style="width:410px;">
+			<h4>Streamline Your Feeds</h4>
+			Readable Feeds can filter out ads and other junk from your feeds so
+			that you can concentrate on the content.  It can even repair crippled
+			feeds that only show small excerpts instead of the full content,
+			saving you the time and hassle of leaving your feed reader.
+			<br /><br />
+			Readable Feeds is brand new and there is a good chance
+			it may fail spectacularly on some feeds.  Any and all 
+			<a href="http://andrewtrusty.com/contact/">feedback</a> would be appreciated!
+			<br /><br />
+		</div>
+	</div>
+	
+	<div class="span-12 last">
+		<div class="intro" style="padding-left:35px;">
+		<h4>How does it work?</h4>
+		
+		There are 3 key ingredients behind Readable Feeds.   
+		<a href="http://lab.arc90.com/experiments/readability/">Arc 90's Readability experiment</a>
+		provides the algorithm for extracting webpage content.  
+		<a href="http://www.nirmalpatel.com/hacks/hnrss.html">Nirmal Patel's Hacker News Readability script</a>
+		provided the inspiration and initial code.  Finally, throw in bit of glue code
+		by <a href="http://andrewtrusty.com/">yours truly</a> to make everything 
+		run on Google App Engine and voila, Readable Feeds is born!
+		</div>				
+	</div>
+	
+	{#
+	<div class="span-24 last">
+		<div id="totals" class="span-12">
+				featuring <span class="highlight large">--</span> feeds
+				and <span class="highlight">--</span> users
+		</div>	
+	</div>
+	#}
+	
+	<div class="span-24 last">
+		<div id="latest-feeds">
+			<fieldset>
+				<legend>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp;Latest Feeds</legend>
+				<img src="/images/latest.png" class="legend-img" />
+				<div class="list">
+				<ul>
+					# for f in newest_feeds
+						{# show dates? #}
+						<li><a href="{{f.feed_url()}}">{{f.title}}</a></li>
+					# else
+						<li>Eek! No feeds detected!</li>
+					# endfor
+				</ul>
+				</div>
+			</fieldset>
+		</div>
+		
+		<div id="top-feeds">
+			<fieldset>
+				<legend>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp;Most Popular Feeds</legend>
+				<img src="/images/favorite.png" class="legend-img" />
+				<div class="list">
+				<ol>
+					# for f in top_feeds
+						<li><a href="{{f.feed_url()}}">{{f.title}}</a> ({{f.hits | number_format}} hits)</li>
+					# else
+						<li>Uh oh! No feeds found!</li>
+					# endfor
+				</ol>
+				</div>
+			</fieldset>
+		</div>
+	</div>
+
+	</td></tr>
+</table>
+
+<div id="credits">
+        design & (some) code by <a href="http://andrewtrusty.com/">Andrew Trusty</a>
+</div>
+
+
+{% endblock %}
+
+

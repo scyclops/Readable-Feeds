@@ -1,0 +1,745 @@
+.center {
+text-align:center;
+}
+
+#header {
+/*background:#252623;*/
+border-bottom:3px solid #808080;
+height:119px;
+}
+#header .alt {
+margin-left:40px;
+}
+
+#header img {
+float:left;
+padding-top:15px;
+margin-left:-3px;
+}
+
+#header h1 {
+font-family:"Trebuchet MS",Verdana,Helvetica,Arial,sans-serif;
+color:#F2F2F2;
+
+margin:0 auto;
+
+}
+#header h3 {
+color:#F7ECC2;
+margin:0 auto;
+}
+body {
+background:#979DA6 !important;
+
+background:#F2F2F2 !important;
+background:#E5E5E7 !important;
+
+/*background:url(/static/images/bg2.gif) repeat-x #EBE9D1 !important;*/
+}
+
+.content {
+background:#fff;
+}
+
+#credits {
+text-align:center;
+padding-top:10px;
+font-size:1.1em;
+color:#565;
+clear:left;
+}
+#credits a {
+color:#444;
+}
+
+#create {
+text-align:center;
+}
+#feed td, #myfeeds td, #signup td {
+padding:20px 35px 20px 35px;
+}
+#feed h3 {
+font-size:1.7em;
+font-weight:bold;
+}
+#feed #name {
+margin-top:12px;
+margin-bottom:8px;
+}
+#feed #name input {
+font-size:1.2em;
+width:585px;
+}
+#feed .abstract {
+margin:0.5em 2em;
+padding: .5em 1em;
+border-left: 5px solid #fce27c;
+background-color:#FFFDCF;
+font-family:Tahoma, "Times New Roman", Times, serif;
+font-family:Arial, Helvetica, sans-serif;
+font-size:0.9em;
+} 
+#feed #author {
+font-size:0.7em;
+color:#64481A;
+}
+#feed #author a {
+color:#64481A;
+}
+#feed #subscribers-list {
+padding:20px;
+padding-top:0;
+font-size:1.3em;
+}
+#feed #to-top {
+font-weight:bold;
+font-size:1.2em;
+float:right;
+}
+#feed #to-top a {
+color:#aaa;
+}
+
+#feed #details {
+font-size:1.2em;
+font-weight:bold;
+}
+#feed #details a, #feed #details {
+color:#368236;
+}
+
+#feed ul {
+list-style-type:none;
+}
+#feed li {
+margin:10px 0 0px 0;
+
+padding:4px 8px 4px 8px;
+}
+.green-btn, .green-btn a {
+color:#fff;
+}
+.green-btn a:hover {
+color:yellow;
+}
+.green-btn {
+font-size:1.5em;
+padding-top:6px;
+font-weight:bold;
+border:2px solid #74FF2F;
+background:#008000;
+width:440px;
+height:36px;
+cursor:pointer;
+text-align:center;
+margin:auto;
+
+}
+#index .green-btn {
+font-size:0.8em;
+width:420px;
+}
+#index #create-btn {
+margin-top:15px;
+
+
+}
+#index .intro {
+font-size:1.3em;
+}
+#index .intro h4 {
+margin-bottom:0;
+font-weight:bold;
+font-size:1.2em;
+color:#6A1711;
+}
+#index .intro {
+width:395px;
+padding-left:40px;
+
+}
+#index #search {
+
+}
+
+
+#index {
+background:#fff;
+padding:0;
+margin:0;
+}
+#index td {
+padding:0;
+margin:0;
+border:0;
+}
+
+#index #totals, #index #search {
+margin:auto;
+font-size:1.4em;
+font-weight:bold;
+text-align:center;
+color:#001356;
+color:#1C3B1C;
+}
+#index .highlight {
+font-size:1.5em;
+color:#000;
+padding:2px 5px 2px 5px;
+}
+#index #or-all {
+font-size:1.0em;
+color:#000;
+font-weight:normal;
+}
+
+#hdr-options {
+float:right;
+color:#fff;
+font-weight:bold;
+font-size:1.2em;
+margin-top:85px;
+}
+#hdr-options a {
+color:#fff;
+}
+#hdr-options .sel {
+color:#FFA500;
+}
+
+.paper {
+font-size:1.4em;
+}
+
+#add-favorites, #tellme {
+font-size:1.8em;
+}
+
+
+#search-feeds {
+font-size:1.0em;
+}
+#feed-search {
+width:330px;
+font-size:1.1em;
+}
+#search-feeds label {
+margin-right:5px;
+}
+#search-feeds button img {
+vertical-align:-38%;
+}
+#search-feeds button {
+height:32px;
+}
+
+
+#index #create-own {
+font-size:1.8em;
+}
+
+#index #latest-feeds, #index #top-feeds {
+padding:20px;
+float:left;
+}
+#index #latest-feeds {
+margin-left:16px;
+}
+#index h3 {
+margin-bottom:4px;
+}
+#latest-feeds h3 {
+color:#64481A;
+}
+#top-feeds h3 {
+color:#AB1D00;
+}
+#index .list {
+width:380px;
+color:#000;
+}
+/*
+#index-highlights #latest-feeds .list {
+background:#FFF38D;
+border:2px solid #998F3A;
+}
+
+#index-highlights #top-feeds .list {
+background:#FFD18D;
+border:2px solid #AF3C2C;
+}
+*/
+#index .feed .title {
+font-size:1.1em;
+font-weight:bold;
+}
+#index .feed .papers {
+font-size:0.8em;
+}
+#index .feed .papers .more {
+font-size:1.3em;
+}
+#index .feed {
+margin-bottom:12px;
+}
+/*
+#index-highlights #latest-feeds .papers .odd {
+background-color:#FFF8BD;
+}
+#index-highlights #top-feeds .papers .odd {
+background-color:#FDE1B9;
+}
+*/
+#index .title a {
+color:#000;
+}
+#index .paper {
+padding:3px 3px 3px 5px;
+}
+#index .title .details {
+font-weight:normal;
+
+}
+
+
+#paper-search, #create #feed-name {
+width:650px;
+font-size:1.0em;
+}
+#add-favorite-btn {
+font-size:inherit;
+}
+#paper-results {
+font-size:1.2em;
+}
+#paper-results tr {
+cursor:pointer;
+}
+#google-scholar-results td {
+font-weight:bold;
+}
+#google-scholar-results .authors, #google-scholar-results .extra {
+font-weight:normal;
+}
+#google-scholar-results td {
+border-bottom:2px solid #ddd;
+padding:8px;	
+}
+#google-scholar-results .first {
+border-top:2px solid #ddd;
+}
+
+#db-choice {
+font-size:0.8em;
+margin-top:3px;
+margin-left:200px;
+margin-bottom:30px;
+}
+#db-choice label {
+font-weight:normal;
+}
+
+#favorites {
+text-align:left;
+}
+#favorites p {
+text-indent:0;
+}
+#fav-search ul {
+}
+#next-btn, #save-btn {
+font-size:0.9em;
+width:104px;
+}
+
+#feed #entries img {
+float:left;
+margin-top:3px;
+}
+#feed #entries .details {
+margin-left:40px;
+}
+#feed #entries {
+clear:left;
+}
+
+#feed #sources .paper {
+display:inline;
+}
+#feed #sources .ref-num {
+font-size:1.2em;
+margin-left:60px;
+}
+#feed #sources img {
+float:left;
+margin-left:25px;
+}
+#feed #sources .item {
+margin-left:90px;
+margin-top:-22px;
+
+}
+#feed .source-add, #feed .source-remove {
+cursor:pointer;
+}
+#feed .updated {
+text-align:center;
+font-style:italic;
+clear:left;
+}
+#feed .updated img {
+vertical-align:middle;
+}
+
+
+#login td, #signup td {
+padding-top:10px;
+}
+#login label, #signup label {
+font-size:1.3em;
+text-align:right;
+width:150px;
+
+float:left;
+clear:left;
+margin-right:10px;
+margin-top:14px;
+}
+#login input, #signup input {
+float:left;
+width:300px;
+}
+#login button, #signup button {
+font-size:1.5em;
+width:104px;
+float:left;
+clear:both;
+margin:15px 0 20px 160px;
+}
+#signup button {
+margin-left:175px;
+}
+#signup fieldset {
+
+}
+#signup .notice {
+font-size:1.2em;
+width:450px;
+}
+#signup .error {
+float:left;
+margin-left:15px;
+margin-top:10px;
+padding:4px;
+}
+#signup .big {
+font-size:1.4em;
+float:left;
+margin:0;
+padding:0;
+margin-top:20px;
+line-height:0.7em;
+
+}
+
+.tip-value {
+color:#999;
+}
+
+.search-links {
+font-size:0.8em;
+}
+
+
+#search-results .notice, #search-results .error {
+font-size:1.2em;
+
+text-align:center;
+}
+#search-results ol {
+font-size:1.5em;
+font-weight:bold;
+list-style-type:none;
+margin-left:0;
+margin-right:0;
+
+}
+#search-results li {
+
+}
+#search-results .feed {
+font-size:0.55em;
+font-weight:normal;
+}
+#search-results .title {
+font-size:1.6em;
+font-weight:bold;
+}
+#search-results .spacer {
+margin-top:8px;
+margin-bottom:12px;
+}
+#search-results .title .details {
+font-size:0.8em;
+color:#555;
+/*color:#001356;*/
+color:#64481A;
+
+}
+
+.pagination {
+font-size:1.4em;
+font-family:"Times New Roman", Times, serif;
+float:right;
+}
+.inactive {
+color:#888;
+}
+.arrow {
+font-size:1.2em;
+}
+.num-results {
+font-size:1.2em;
+}
+
+.highlight {
+background-color: yellow;
+}
+
+#login #signup-link {
+font-size:1.4em;
+margin:25px 0 0 80px;
+float:left;
+}
+#login #signup-link a { 
+font-weight:bold;
+}
+#login form {
+float:left;
+}
+#sharethis {
+font-size:1.1em;
+margin-top:6px;
+font-weight:bold;
+}
+#sharethis img {
+margin-top:2px;
+}
+#sharethis a {
+color:#000099;
+}
+
+#shares {
+margin:auto;
+text-align:center;
+font-size:1.2em;
+color:#000;
+font-weight:normal;
+width:350px;
+padding-left:10px;
+margin-left:65px;
+}
+#shares th {
+text-align:center;
+padding:8px;
+font-style:oblique;
+color:#A53A9B;
+}
+.share {
+text-align:center;
+width:90px;
+}
+.share img {
+margin-bottom:4px;
+}
+.share a {
+text-decoration:none;
+color:#000;
+}
+.share span {
+text-decoration:underline;
+}
+
+#myfeeds .feed {
+font-size:1.1em;
+color:#000;
+}
+#myfeeds .paper {
+font-size:1.1em;
+
+}
+#myfeeds .title a {
+font-weight:bold;
+}
+#myfeeds .title {
+font-size:1.1em;
+}
+#myfeeds em {
+font-weight:bold;
+}
+#myfeeds .details {
+font-size:0.9em;
+}
+#myfeeds ul {
+margin-bottom:2px;
+}
+#myfeeds #created, #myfeeds #subscriptions {
+float:left;
+width:415px;
+
+}
+#myfeeds #subscriptions {
+margin-right:30px;
+
+}
+#myfeeds #subscriptions fieldset, #index #latest-feeds fieldset {
+background-color:#FFF8BD;
+border:2px solid #E5D973;
+color:#7D5418;
+}
+#myfeeds #created fieldset, #index #top-feeds fieldset {
+background-color:#EBFCCE;
+border:2px solid #B3DB6C;
+color:#65852C;
+}
+#myfeeds #created .feed {
+margin-bottom:3px;
+padding:0;
+}
+.details a {
+color:#000;
+font-weight:normal !important;
+}
+
+.legend-img {
+position:absolute;
+margin-left:0px;
+margin-top:-41px;
+}
+
+
+#sub-btn:hover, #unsub-btn:hover {
+color:yellow;
+}
+#sub-btn, #unsub-btn {
+color:#fff;
+font-size:1.2em;
+font-weight:bold;
+border:2px solid #74FF2F;
+background:#008000;
+width:210px;
+height:25px;
+padding-top:2px;
+cursor:pointer;
+text-align:center;
+clear:left;
+margin:auto;
+margin-bottom:16px;
+
+}
+#unsub-btn {
+background:#AA0009;
+border-color:red;
+}
+.feed-remove, .feed-add, .feed-loading {
+float:right;
+margin-top:10px;
+}
+#feed-loading {
+margin-top:12px;
+margin-right:4px;
+}
+
+#index .feed-remove, #index .feed-add {
+margin-top:0px;
+}
+#index .feed-loading {
+margin-top:2px;
+}
+
+.feed-add, .feed-remove {
+cursor:pointer;
+}
+
+#search-results .feed-add, #search-results .feed-remove {
+float:left;
+margin-left:-40px;
+}
+#search-results .userfeed {
+margin-left:40px;
+}
+
+#any-filter-val {
+width:30px;
+}
+
+#too-many, #add-sources {
+padding-left:40px;
+clear:left;
+width:600px;
+font-size:1.2em;
+/*line-height:1.3em;*/
+margin:auto;
+margin-top:15px;
+color:#B69774;
+margin-bottom:15px;
+}
+#too-many-link, #add-sources {
+text-decoration:underline;
+cursor:pointer;
+font-weight:bold;
+}
+#too-many a {
+color:#000;
+}
+
+#search-page #or {
+margin-top:-10px;
+margin-bottom:6px;
+font-weight:bold;
+color:#888;
+margin-left:55px;
+text-align:center;
+font-size:1.3em;
+}
+#search-page #feed-search {
+font-size:1.2em;
+width:600px;
+}
+#search-page #search-feeds {
+font-size:1.4em;
+}
+
+#add-sources {
+margin-bottom:18px;
+}
+#add-sources a {
+color:#B69774;
+}
+#name sub, #name sub a {
+color:#000 !important;
+}
+#name sub {
+margin-left:-3px;
+}
+
+#feed-create {
+font-size:1.8em;
+padding:40px;
+margin-bottom:20px;
+}
+#feed-create input, #feed-create button {
+font-size:1.0em;
+}
+#feed-create input {
+width:600px;
+}
+.list {
+font-size:1.2em;
+line-height:1.7em;
+}
+
+
+
+
+

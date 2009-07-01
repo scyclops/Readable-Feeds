@@ -1,0 +1,43 @@
+application: andrewtrusty
+version: 1
+runtime: python
+api_version: 1
+
+# http://code.google.com/appengine/docs/python/config/appconfig.html
+
+default_expiration: "365d"
+
+handlers:
+- url: /css
+  static_dir: css
+
+- url: /js
+  static_dir: js
+
+- url: /images
+  static_dir: images
+
+- url: /admin/.*
+  script: $PYTHON_LIB/google/appengine/ext/admin
+  login: admin
+  secure: always
+
+- url: /.*
+  script: main.py
+
+
+skip_files:
+- ^(.*/)?app\.yaml
+- ^(.*/)?app\.yml
+- ^(.*/)?index\.yaml
+- ^(.*/)?index\.yml
+- ^(.*/)?#.*#
+- ^(.*/)?.*~
+- ^(.*/)?.*\.py[co]
+- ^(.*/)?.*/RCS/.*
+- ^(.*/)?\..*
+- ^(.*/)?_darcs
+- ^(.*/)?DEV
+- ^(.*/)?\.git
+
+# added 4 files to skip to the defaults

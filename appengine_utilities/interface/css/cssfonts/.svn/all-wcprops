@@ -1,0 +1,29 @@
+K 25
+svn:wc:ra_dav:version-url
+V 70
+/svn/!svn/ver/75/tags/1.2.2/appengine_utilities/interface/css/cssfonts
+END
+fonts.css
+K 25
+svn:wc:ra_dav:version-url
+V 80
+/svn/!svn/ver/75/tags/1.2.2/appengine_utilities/interface/css/cssfonts/fonts.css
+END
+fonts-min.css
+K 25
+svn:wc:ra_dav:version-url
+V 84
+/svn/!svn/ver/75/tags/1.2.2/appengine_utilities/interface/css/cssfonts/fonts-min.css
+END
+fonts-context.css
+K 25
+svn:wc:ra_dav:version-url
+V 88
+/svn/!svn/ver/75/tags/1.2.2/appengine_utilities/interface/css/cssfonts/fonts-context.css
+END
+fonts-context-min.css
+K 25
+svn:wc:ra_dav:version-url
+V 92
+/svn/!svn/ver/75/tags/1.2.2/appengine_utilities/interface/css/cssfonts/fonts-context-min.css
+END

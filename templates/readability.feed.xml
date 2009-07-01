@@ -1,0 +1,25 @@
+<rss version="2.0">
+<channel>
+	<title>{{title}}</title>
+	<link>{{link}}</link>
+	<description>{{description}}</description>
+	
+    # for entry, content in items:
+    	<item>
+        	<title>{{entry.title}}</title>
+        	<link>{{entry.link}}</link>
+        	<comments>{{entry.comments}}</comments>
+	        <description>
+    	        <![CDATA[
+				{{content|safe}}
+				{# this if might not be necessary.. #}
+				# if entry.comments
+					<br/><a href="{{entry.comments}}">Comments</a>
+				# endif
+				]]>
+        	</description>
+    	</item>
+	# endfor
+
+</channel>
+</rss>

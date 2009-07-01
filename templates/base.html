@@ -1,0 +1,33 @@
+<?xml version='1.0' encoding='utf-8' ?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head>
+
+  	<title>{% block title %}{% endblock %}</title>
+	<meta name="keywords" content="{% block keywords %}{% endblock %}" />
+	<meta name="description" content="{% block description %}{% endblock %}" />
+
+   <link rel="stylesheet" href="/css/blueprint/screen.css" type="text/css" media="screen, projection">
+   <link rel="stylesheet" href="/css/blueprint/print.css" type="text/css" media="print"> 
+   <!--[if IE]>
+     <link rel="stylesheet" href="/css/blueprint/ie.css" type="text/css" media="screen, projection">
+   <![endif]-->
+
+</head>
+<body>
+<a name="top"></a>
+<div id="container" class="container">
+{% block content %}
+
+
+{% block body %}
+
+{% endblock %}
+
+
+{% endblock %}
+</div><!-- end container -->
+<br /><br /><br />
+
+</body>
+</html>
