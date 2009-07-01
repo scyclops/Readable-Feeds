@@ -403,9 +403,13 @@ except ImportError, msg:
 try:
     # This is a convenient way to make keepalive optional.
     # Just rename the module so it can't be imported.
+    
+    # not supported on GAE -Andrew Trusty
+    """
     import keepalive
     from keepalive import HTTPHandler, HTTPSHandler
-    have_keepalive = True
+    """
+    have_keepalive = not True
 except ImportError, msg:
     have_keepalive = False
 
