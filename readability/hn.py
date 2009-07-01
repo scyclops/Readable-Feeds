@@ -175,8 +175,8 @@ def upgradeLink(link, user_agent, graball=False):
         else:
             content = u""
             try:
-                html = urlgrabber.urlread(link, keepalive=0, user_agent=agent)
-                content = grabContent(link, html, graball=graball)
+                html = urlgrabber.urlread(link, keepalive=0, user_agent=user_agent)
+                content = grabContent(link, html)
                 CACHE[linkFile] = content
             except IOError:
                 pass
@@ -245,7 +245,9 @@ def upgradeFeed(feedUrl, agent=None, out=None):
     except: # assume that if i get title, link & subtitle its a valid feed
         raise NotFeedException("Failed to retrieve a feed!")
     
-    description = parsedFeed.feed.get('subtitle', '')
+    description = ''
+    if hasattr(parsedFeed.feed, 'subtitle'):
+        description = parsedFeed.feed.subtitle
     
     start_time = time.time()
     items = []
