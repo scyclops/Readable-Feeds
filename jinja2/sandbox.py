@@ -12,6 +12,7 @@
     :copyright: Copyright 2008 by Armin Ronacher.
     :license: BSD.
 """
+
 import operator
 from jinja2.runtime import Undefined
 from jinja2.environment import Environment
@@ -24,11 +25,16 @@ from jinja2.utils import FunctionType, MethodType, TracebackType, CodeType, \
 MAX_RANGE = 100000
 
 #: attributes of function objects that are considered unsafe.
-UNSAFE_FUNCTION_ATTRIBUTES = set(['func_closure', 'func_code', 'func_dict',
-                                  'func_defaults', 'func_globals'])
+UNSAFE_FUNCTION_ATTRIBUTES = {
+    'func_closure',
+    'func_code',
+    'func_dict',
+    'func_defaults',
+    'func_globals',
+}
 
 #: unsafe method attributes.  function attributes are unsafe for methods too
-UNSAFE_METHOD_ATTRIBUTES = set(['im_class', 'im_func', 'im_self'])
+UNSAFE_METHOD_ATTRIBUTES = {'im_class', 'im_func', 'im_self'}
 
 
 from collections import deque
@@ -143,10 +149,14 @@ def modifies_known_mutable(obj, attr):
     >>> modifies_known_mutable("foo", "upper")
     False
     """
-    for typespec, unsafe in _mutable_spec:
-        if isinstance(obj, typespec):
-            return attr in unsafe
-    return False
+    return next(
+        (
+            attr in unsafe
+            for typespec, unsafe in _mutable_spec
+            if isinstance(obj, typespec)
+        ),
+        False,
+    )
 
 
 class SandboxedEnvironment(Environment):
@@ -245,6 +255,8 @@ class ImmutableSandboxedEnvironment(SandboxedEnvironment):
     """
 
     def is_safe_attribute(self, obj, attr, value):
-        if not SandboxedEnvironment.is_safe_attribute(self, obj, attr, value):
-            return False
-        return not modifies_known_mutable(obj, attr)
+        return (
+            not modifies_known_mutable(obj, attr)
+            if SandboxedEnvironment.is_safe_attribute(self, obj, attr, value)
+            else False
+        )

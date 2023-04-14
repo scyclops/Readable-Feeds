@@ -99,6 +99,7 @@ EXTRA ATTRIBUTES AND METHODS
 
 """
 
+
 # $Id: keepalive.py,v 1.16 2006/09/22 00:58:05 mstenner Exp $
 
 import urllib2
@@ -111,8 +112,7 @@ DEBUG = None
 import sslfactory
 
 import sys
-if sys.version_info < (2, 4): HANDLE_ERRORS = 1
-else: HANDLE_ERRORS = 0
+HANDLE_ERRORS = 1 if sys.version_info < (2, 4) else 0
     
 class ConnectionManager:
     """
@@ -138,15 +138,14 @@ class ConnectionManager:
     def remove(self, connection):
         self._lock.acquire()
         try:
-            try:
-                host = self._connmap[connection]
-            except KeyError:
-                pass
-            else:
-                del self._connmap[connection]
-                del self._readymap[connection]
-                self._hostmap[host].remove(connection)
-                if not self._hostmap[host]: del self._hostmap[host]
+            host = self._connmap[connection]
+        except KeyError:
+            pass
+        else:
+            del self._connmap[connection]
+            del self._readymap[connection]
+            self._hostmap[host].remove(connection)
+            if not self._hostmap[host]: del self._hostmap[host]
         finally:
             self._lock.release()
 
@@ -169,10 +168,7 @@ class ConnectionManager:
         return conn
 
     def get_all(self, host=None):
-        if host:
-            return list(self._hostmap.get(host, []))
-        else:
-            return dict(self._hostmap)
+        return list(self._hostmap.get(host, [])) if host else dict(self._hostmap)
 
 class KeepAliveHandler:
     def __init__(self):
@@ -282,11 +278,11 @@ class KeepAliveHandler:
             # that it's now possible this call will raise
             # a DIFFERENT exception
             if DEBUG: DEBUG.error("unexpected exception - closing " + \
-                                  "connection to %s (%d)", host, id(h))
+                                      "connection to %s (%d)", host, id(h))
             self._cm.remove(h)
             h.close()
             raise
-                    
+
         if r is None or r.version == 9:
             # httplib falls back to assuming HTTP 0.9 if it gets a
             # bad header back.  This is most likely to happen if
@@ -295,9 +291,7 @@ class KeepAliveHandler:
             if DEBUG: DEBUG.info("failed to re-use connection to %s (%d)",
                                  host, id(h))
             r = None
-        else:
-            if DEBUG: DEBUG.info("re-using connection to %s (%d)", host, id(h))
-
+        elif DEBUG: DEBUG.info("re-using connection to %s (%d)", host, id(h))
         return r
 
     def _start_transaction(self, h, req):
@@ -406,7 +400,7 @@ class HTTPResponse(httplib.HTTPResponse):
     def read(self, amt=None):
         # the _rbuf test is only in this first if for speed.  It's not
         # logically necessary
-        if self._rbuf and not amt is None:
+        if self._rbuf and amt is not None:
             L = len(self._rbuf)
             if amt > L:
                 amt -= L
@@ -428,8 +422,7 @@ class HTTPResponse(httplib.HTTPResponse):
             i = new.find('\n')
             if i >= 0: i = i + len(self._rbuf)
             self._rbuf = self._rbuf + new
-        if i < 0: i = len(self._rbuf)
-        else: i = i+1
+        i = len(self._rbuf) if i < 0 else i+1
         if 0 <= limit < len(self._rbuf): i = limit
         data, self._rbuf = self._rbuf[:i], self._rbuf[i:]
         return data

@@ -122,15 +122,11 @@ class Latin1Prober(CharSetProber):
     def get_confidence(self):
         if self.get_state() == constants.eNotMe:
             return 0.01
-  
+
         total = reduce(operator.add, self._mFreqCounter)
         if total < 0.01:
             confidence = 0.0
         else:
             confidence = (self._mFreqCounter[3] / total) - (self._mFreqCounter[1] * 20.0 / total)
-        if confidence < 0.0:
-            confidence = 0.0
-        # lower the confidence of latin1 so that other more accurate detector 
-        # can take priority.
-        confidence = confidence * 0.5
-        return confidence
+        confidence = max(confidence, 0.0)
+        return confidence * 0.5

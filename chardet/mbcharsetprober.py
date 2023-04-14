@@ -51,11 +51,14 @@ class MultiByteCharSetProber(CharSetProber):
 
     def feed(self, aBuf):
         aLen = len(aBuf)
-        for i in range(0, aLen):
+        for i in range(aLen):
             codingState = self._mCodingSM.next_state(aBuf[i])
             if codingState == eError:
                 if constants._debug:
-                    sys.stderr.write(self.get_charset_name() + ' prober hit error at byte ' + str(i) + '\n')
+                    sys.stderr.write(
+                        f'{self.get_charset_name()} prober hit error at byte {str(i)}'
+                        + '\n'
+                    )
                 self._mState = constants.eNotMe
                 break
             elif codingState == eItsMe:
@@ -68,13 +71,15 @@ class MultiByteCharSetProber(CharSetProber):
                     self._mDistributionAnalyzer.feed(self._mLastChar, charLen)
                 else:
                     self._mDistributionAnalyzer.feed(aBuf[i-1:i+1], charLen)
-                    
+
         self._mLastChar[0] = aBuf[aLen - 1]
-        
-        if self.get_state() == constants.eDetecting:
-            if self._mDistributionAnalyzer.got_enough_data() and \
-               (self.get_confidence() > constants.SHORTCUT_THRESHOLD):
-                self._mState = constants.eFoundIt
+
+        if (
+            self.get_state() == constants.eDetecting
+            and self._mDistributionAnalyzer.got_enough_data()
+            and (self.get_confidence() > constants.SHORTCUT_THRESHOLD)
+        ):
+            self._mState = constants.eFoundIt
 
         return self.get_state()
 

@@ -314,7 +314,7 @@ def emailerrors(email_address, olderror):
         error_value = tb[1]
         tb_txt = ''.join(traceback.format_exception(*tb))
         path = web.ctx.path
-        request = web.ctx.method+' '+web.ctx.home+web.ctx.fullpath
+        request = f'{web.ctx.method} {web.ctx.home}{web.ctx.fullpath}'
         eaddr = email_address
         text = ("""\
 ------here----
@@ -331,13 +331,16 @@ Content-Disposition: attachment; filename="bug.html"
 
 """ % locals()) + str(djangoerror())
         sendmail(
-          "your buggy site <%s>" % eaddr,
-          "the bugfixer <%s>" % eaddr,
-          "bug: %(error_name)s: %(error_value)s (%(path)s)" % locals(),
-          text, 
-          headers={'Content-Type': 'multipart/mixed; boundary="----here----"'})
+            f"your buggy site <{eaddr}>",
+            f"the bugfixer <{eaddr}>",
+            "bug: %(error_name)s: %(error_value)s (%(path)s)" % locals(),
+            text,
+            headers={
+                'Content-Type': 'multipart/mixed; boundary="----here----"'
+            },
+        )
         return error
-    
+
     return emailerrors_internal
 
 if __name__ == "__main__":

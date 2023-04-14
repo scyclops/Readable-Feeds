@@ -499,8 +499,7 @@ def _init_default_logger():
         if level < 1: raise ValueError()
 
         formatter = logging.Formatter('%(asctime)s %(message)s')
-        if len(dbinfo) > 1: filename = dbinfo[1]
-        else: filename = ''
+        filename = dbinfo[1] if len(dbinfo) > 1 else ''
         if filename == '': handler = logging.StreamHandler(sys.stderr)
         elif filename == '-': handler = logging.StreamHandler(sys.stdout)
         else:  handler = logging.FileHandler(filename)
@@ -650,36 +649,33 @@ class URLParser:
           opts.quote = None  --> guess
         """
         quote = opts.quote
-        
+
         if opts.prefix:
             url = self.add_prefix(url, opts.prefix)
-            
+
         parts = urlparse.urlparse(url)
         (scheme, host, path, parm, query, frag) = parts
 
         if not scheme or (len(scheme) == 1 and scheme in string.letters):
             # if a scheme isn't specified, we guess that it's "file:"
             if url[0] not in '/\\': url = os.path.abspath(url)
-            url = 'file:' + urllib.pathname2url(url)
+            url = f'file:{urllib.pathname2url(url)}'
             parts = urlparse.urlparse(url)
             quote = 0 # pathname2url quotes, so we won't do it again
-            
+
         if scheme in ['http', 'https']:
             parts = self.process_http(parts)
-            
+
         if quote is None:
             quote = self.guess_should_quote(parts)
         if quote:
             parts = self.quote(parts)
-        
+
         url = urlparse.urlunparse(parts)
         return url, parts
 
     def add_prefix(self, url, prefix):
-        if prefix[-1] == '/' or url[0] == '/':
-            url = prefix + url
-        else:
-            url = prefix + '/' + url
+        url = prefix + url if prefix[-1] == '/' or url[0] == '/' else f'{prefix}/{url}'
         return url
 
     def process_http(self, parts):
@@ -778,9 +774,9 @@ class URLGrabberOptions:
         if have_range and kwargs.has_key('range'):
             # normalize the supplied range value
             self.range = range_tuple_normalize(self.range)
-        if not self.reget in [None, 'simple', 'check_timestamp']:
+        if self.reget not in [None, 'simple', 'check_timestamp']:
             raise URLGrabError(11, _('Illegal reget mode: %s') \
-                               % (self.reget, ))
+                                   % (self.reget, ))
 
     def _set_defaults(self):
         """Set all options to their default values. 
@@ -796,7 +792,7 @@ class URLGrabberOptions:
         self.copy_local = 0
         self.close_connection = 0
         self.range = None
-        self.user_agent = 'urlgrabber/%s' % __version__
+        self.user_agent = f'urlgrabber/{__version__}'
         self.keepalive = 1
         self.proxies = None
         self.reget = None
@@ -894,7 +890,7 @@ class URLGrabber:
         different from the passed-in filename if copy_local == 0.
         """
         opts = self.opts.derive(**kwargs)
-        (url,parts) = opts.urlparser.parse(url, opts) 
+        (url,parts) = opts.urlparser.parse(url, opts)
         (scheme, host, path, parm, query, frag) = parts
         if filename is None:
             filename = os.path.basename( urllib.unquote(path) )
@@ -903,7 +899,7 @@ class URLGrabber:
             # copy currently
             path = urllib.url2pathname(path)
             if host:
-                path = os.path.normpath('//' + host + path)
+                path = os.path.normpath(f'//{host}{path}')
             if not os.path.exists(path):
                 raise URLGrabError(2, 
                       _('Local file does not exist: %s') % (path, ))
@@ -912,14 +908,14 @@ class URLGrabber:
                               _('Not a normal file: %s') % (path, ))
             elif not opts.range:
                 return path
-        
+
         def retryfunc(opts, url, filename):
             fo = URLGrabberFileObject(url, filename, opts)
             try:
                 fo._do_grab()
-                if not opts.checkfunc is None:
+                if opts.checkfunc is not None:
                     cb_func, cb_args, cb_kwargs = \
-                             self._make_callback(opts.checkfunc)
+                                 self._make_callback(opts.checkfunc)
                     obj = CallbackObject()
                     obj.filename = filename
                     obj.url = url
@@ -927,7 +923,7 @@ class URLGrabber:
             finally:
                 fo.close()
             return filename
-        
+
         return self._retry(opts, retryfunc, url, filename)
     
     def urlread(self, url, limit=None, **kwargs):
@@ -938,10 +934,10 @@ class URLGrabber:
         into memory, but don't use too much'
         """
         opts = self.opts.derive(**kwargs)
-        (url,parts) = opts.urlparser.parse(url, opts) 
+        (url,parts) = opts.urlparser.parse(url, opts)
         if limit is not None:
             limit = limit + 1
-            
+
         def retryfunc(opts, url, limit):
             fo = URLGrabberFileObject(url, filename=None, opts=opts)
             s = ''
@@ -950,12 +946,10 @@ class URLGrabber:
                 # have a default "limit" of None, while the built-in (real)
                 # file objects have -1.  They each break the other, so for
                 # now, we just force the default if necessary.
-                if limit is None: s = fo.read()
-                else: s = fo.read(limit)
-
-                if not opts.checkfunc is None:
+                s = fo.read() if limit is None else fo.read(limit)
+                if opts.checkfunc is not None:
                     cb_func, cb_args, cb_kwargs = \
-                             self._make_callback(opts.checkfunc)
+                                 self._make_callback(opts.checkfunc)
                     obj = CallbackObject()
                     obj.data = s
                     obj.url = url
@@ -963,7 +957,7 @@ class URLGrabber:
             finally:
                 fo.close()
             return s
-            
+
         s = self._retry(opts, retryfunc, url, limit)
         if limit and len(s) > limit:
             raise URLGrabError(8, 
@@ -971,10 +965,7 @@ class URLGrabber:
         return s
         
     def _make_callback(self, callback_obj):
-        if callable(callback_obj):
-            return callback_obj, (), {}
-        else:
-            return callback_obj
+        return (callback_obj, (), {}) if callable(callback_obj) else callback_obj
 
 # create the default URLGrabber used by urlXXX functions.
 # NOTE: actual defaults are set in URLGrabberOptions
@@ -1020,7 +1011,7 @@ class URLGrabberFileObject:
             handlers = []
             need_keepalive_handler = (have_keepalive and self.opts.keepalive)
             need_range_handler = (range_handlers and \
-                                  (self.opts.range or self.opts.reget))
+                                      (self.opts.range or self.opts.reget))
             # if you specify a ProxyHandler when creating the opener
             # it _must_ come before all other handlers in the list or urllib2
             # chokes.
@@ -1052,8 +1043,7 @@ class URLGrabberFileObject:
                 self.opts.ssl_context)
 
             if need_keepalive_handler:
-                handlers.append(HTTPHandler())
-                handlers.append(HTTPSHandler(ssl_factory))
+                handlers.extend((HTTPHandler(), HTTPSHandler(ssl_factory)))
             if need_range_handler:
                 handlers.extend( range_handlers )
             handlers.append( auth_handler )
@@ -1082,9 +1072,9 @@ class URLGrabberFileObject:
                 modified_tuple  = hdr.getdate_tz('last-modified')
                 modified_stamp  = rfc822.mktime_tz(modified_tuple)
                 if modified_stamp > self.reget_time: fetch_again = 1
-            except (TypeError,):
+            except TypeError:
                 fetch_again = 1
-            
+
             if fetch_again:
                 # the server version is newer than the (incomplete) local
                 # version, so we should abandon the version we're getting
@@ -1098,7 +1088,7 @@ class URLGrabberFileObject:
         (scheme, host, path, parm, query, frag) = urlparse.urlparse(self.url)
         path = urllib.unquote(path)
         if not (self.opts.progress_obj or self.opts.raw_throttle() \
-                or self.opts.timeout):
+                    or self.opts.timeout):
             # if we're not using the progress_obj, throttling, or timeout
             # we can get a performance boost by going directly to
             # the underlying fileobject for reads.
@@ -1108,7 +1098,7 @@ class URLGrabberFileObject:
         elif self.opts.progress_obj:
             try:    
                 length = int(hdr['Content-Length'])
-                length = length + self._amount_read     # Account for regets
+                length += self._amount_read
             except (KeyError, ValueError, TypeError): 
                 length = None
 
@@ -1151,17 +1141,17 @@ class URLGrabberFileObject:
 
                 rt = reget_length, ''
                 self.append = 1
-                
+
         if self.opts.range:
             if not have_range:
                 raise URLGrabError(10, _('Byte range requested but range '\
-                                         'support unavailable'))
+                                             'support unavailable'))
             rt = self.opts.range
             if rt[0]: rt = (rt[0] + reget_length, rt[1])
 
         if rt:
-            header = range_tuple_to_header(rt)
-            if header: req.add_header('Range', header)
+            if header := range_tuple_to_header(rt):
+                req.add_header('Range', header)
 
     def _make_request(self, req, opener):
         try:
@@ -1286,11 +1276,10 @@ class URLGrabberFileObject:
         while i < 0 and not (0 < limit <= len(self._rbuf)):
             L = len(self._rbuf)
             self._fill_buffer(L + self._rbufsize)
-            if not len(self._rbuf) > L: break
+            if len(self._rbuf) <= L: break
             i = string.find(self._rbuf, '\n', L)
 
-        if i < 0: i = len(self._rbuf)
-        else: i = i+1
+        i = len(self._rbuf) if i < 0 else i+1
         if 0 <= limit < len(self._rbuf): i = limit
 
         s, self._rbuf = self._rbuf[:i], self._rbuf[i:]

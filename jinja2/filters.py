@@ -111,12 +111,12 @@ def do_xmlattr(_environment, d, autospace=True):
     if the filter returned something unless the second parameter is false.
     """
     rv = u' '.join(
-        u'%s="%s"' % (escape(key), escape(value))
+        f'{escape(key)}="{escape(value)}"'
         for key, value in d.iteritems()
         if value is not None and not isinstance(value, Undefined)
     )
     if autospace and rv:
-        rv = u' ' + rv
+        rv = f' {rv}'
     if _environment.autoescape:
         rv = Markup(rv)
     return rv
@@ -240,10 +240,7 @@ def do_join(environment, value, d=u''):
                 do_escape = True
             else:
                 value[idx] = unicode(item)
-        if do_escape:
-            d = escape(d)
-        else:
-            d = unicode(d)
+        d = escape(d) if do_escape else unicode(d)
         return d.join(value)
 
     # no html involved, to normal joining
@@ -289,15 +286,15 @@ def do_filesizeformat(value, binary=False):
     prefixes are (mebi, gibi).
     """
     bytes = float(value)
-    base = binary and 1024 or 1000
-    middle = binary and 'i' or ''
+    base = 1024 if binary else 1000
+    middle = 'i' if binary else ''
     if bytes < base:
         return "%d Byte%s" % (bytes, bytes != 1 and 's' or '')
-    elif bytes < base * base:
+    elif bytes < base**2:
         return "%.1f K%sB" % (bytes / base, middle)
-    elif bytes < base * base * base:
-        return "%.1f M%sB" % (bytes / (base * base), middle)
-    return "%.1f G%sB" % (bytes / (base * base * base), middle)
+    elif bytes < base**2 * base:
+        return "%.1f M%sB" % (bytes / base**2, middle)
+    return "%.1f G%sB" % (bytes / (base**2 * base), middle)
 
 
 def do_pprint(value, verbose=False):
@@ -535,7 +532,7 @@ def do_round(value, precision=0, method='common'):
         {{ 42.55|round(1, 'floor') }}
             -> 42.5
     """
-    if not method in ('common', 'ceil', 'floor'):
+    if method not in ('common', 'ceil', 'floor'):
         raise FilterArgumentError('method must be common, ceil or floor')
     if precision < 0:
         raise FilterArgumentError('precision must be a postive integer '

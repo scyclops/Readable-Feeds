@@ -42,5 +42,4 @@ class ROTModel(db.Model):
                 return db.Model.put(self)
             except db.Timeout:
                 count += 1
-        else:
-            raise db.Timeout()
+        raise db.Timeout()

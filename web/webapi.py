@@ -87,10 +87,7 @@ class Redirect(HTTPError):
         newloc = urlparse.urljoin(ctx.path, url)
 
         if newloc.startswith('/'):
-            if absolute:
-                home = ctx.realhome
-            else:
-                home = ctx.home
+            home = ctx.realhome if absolute else ctx.home
             newloc = home + newloc
 
         headers = {
@@ -126,14 +123,11 @@ class NoMethod(HTTPError):
     """A `405 Method Not Allowed` error."""
     def __init__(self, cls=None):
         status = '405 Method Not Allowed'
-        headers = {}
-        headers['Content-Type'] = 'text/html'
-        
         methods = ['GET', 'HEAD', 'POST', 'PUT', 'DELETE']
         if cls:
             methods = [method for method in methods if hasattr(cls, method)]
 
-        headers['Allow'] = ', '.join(methods)
+        headers = {'Content-Type': 'text/html', 'Allow': ', '.join(methods)}
         data = None
         HTTPError.__init__(self, status, headers, data)
         
@@ -190,27 +184,29 @@ def input(*requireds, **defaults):
             fs.list = [] 
 
         return dict([(k, fs[k]) for k in fs.keys()])
-    
+
     _method = defaults.pop('_method', 'both')
-    
+
     e = ctx.env.copy()
     a = b = {}
-    
-    if _method.lower() in ['both', 'post', 'put']:
-        if e['REQUEST_METHOD'] in ['POST', 'PUT']:
-            if e.get('CONTENT_TYPE', '').lower().startswith('multipart/'):
-                # since wsgi.input is directly passed to cgi.FieldStorage, 
-                # it can not be called multiple times. Saving the FieldStorage
-                # object in ctx to allow calling web.input multiple times.
-                a = ctx.get('_fieldstorage')
-                if not a:
-                    fp = e['wsgi.input']
-                    a = cgi.FieldStorage(fp=fp, environ=e, keep_blank_values=1)
-                    ctx._fieldstorage = a
-            else:
-                fp = StringIO(data())
+
+    if _method.lower() in ['both', 'post', 'put'] and e['REQUEST_METHOD'] in [
+        'POST',
+        'PUT',
+    ]:
+        if e.get('CONTENT_TYPE', '').lower().startswith('multipart/'):
+            # since wsgi.input is directly passed to cgi.FieldStorage, 
+            # it can not be called multiple times. Saving the FieldStorage
+            # object in ctx to allow calling web.input multiple times.
+            a = ctx.get('_fieldstorage')
+            if not a:
+                fp = e['wsgi.input']
                 a = cgi.FieldStorage(fp=fp, environ=e, keep_blank_values=1)
-            a = dictify(a)
+                ctx._fieldstorage = a
+        else:
+            fp = StringIO(data())
+            a = cgi.FieldStorage(fp=fp, environ=e, keep_blank_values=1)
+        a = dictify(a)
 
     if _method.lower() in ['both', 'get']:
         e['REQUEST_METHOD'] = 'GET'

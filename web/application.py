@@ -158,11 +158,8 @@ class application:
         """
         path, maybe_query = urllib.splitquery(localpart)
         query = maybe_query or ""
-        
-        if 'env' in kw:
-            env = kw['env']
-        else:
-            env = {}
+
+        env = kw['env'] if 'env' in kw else {}
         env = dict(env, HTTP_HOST=host, REQUEST_METHOD=method, PATH_INFO=path, QUERY_STRING=query, HTTPS=str(https))
         headers = headers or {}
 
@@ -177,10 +174,7 @@ class application:
 
         if data:
             import StringIO
-            if isinstance(data, dict):
-                q = urllib.urlencode(data)
-            else:
-                q = data
+            q = urllib.urlencode(data) if isinstance(data, dict) else data
             env['wsgi.input'] = StringIO.StringIO(q)
             if not env.get('CONTENT_TYPE', '').lower().startswith('multipart/') and 'CONTENT_LENGTH' not in env:
                 env['CONTENT_LENGTH'] = len(q)
@@ -189,6 +183,7 @@ class application:
             response.status = status
             response.headers = dict(headers)
             response.header_items = headers
+
         response.data = "".join(self.wsgifunc(cleanup_threadlocal=False)(env, start_response))
         return response
 
@@ -320,7 +315,7 @@ class application:
             ctx.protocol = 'https'
         else:
             ctx.protocol = 'http'
-        ctx.homedomain = ctx.protocol + '://' + env.get('HTTP_HOST', '[unknown]')
+        ctx.homedomain = f'{ctx.protocol}://' + env.get('HTTP_HOST', '[unknown]')
         ctx.homepath = os.environ.get('REAL_SCRIPT_NAME', env.get('SCRIPT_NAME', ''))
         ctx.home = ctx.homedomain + ctx.homepath
         #@@ home is changed when the request is handled to a sub-application.
@@ -339,14 +334,14 @@ class application:
             ctx.query = ''
 
         ctx.fullpath = ctx.path + ctx.query
-        
+
         for k, v in ctx.iteritems():
             if isinstance(v, str):
                 ctx[k] = safeunicode(v)
 
         # status must always be str
         ctx.status = '200 OK'
-        
+
         ctx.app_stack = []
 
     def _delegate(self, f, fvars, args=[]):
@@ -358,9 +353,9 @@ class application:
                 raise web.nomethod(cls)
             tocall = getattr(cls(), meth)
             return tocall(*args)
-            
+
         def is_class(o): return isinstance(o, (types.ClassType, type))
-            
+
         if f is None:
             raise web.notfound()
         elif isinstance(f, application):
@@ -373,7 +368,7 @@ class application:
                 if web.ctx.method == "GET":
                     x = web.ctx.env.get('QUERY_STRING', '')
                     if x:
-                        url += '?' + x
+                        url += f'?{x}'
                 raise web.redirect(url)
             elif '.' in f:
                 x = f.split('.')
@@ -397,10 +392,10 @@ class application:
                 else:
                     continue
             elif isinstance(what, basestring):
-                what, result = utils.re_subm('^' + pat + '$', what, value)
+                what, result = utils.re_subm(f'^{pat}$', what, value)
             else:
-                result = utils.re_compile('^' + pat + '$').match(value)
-                
+                result = utils.re_compile(f'^{pat}$').match(value)
+
             if result: # it's a match
                 return what, [x and urllib.unquote(x) for x in result.groups()]
         return None, None
@@ -433,16 +428,14 @@ class application:
         
     def notfound(self):
         """Returns HTTPError with '404 not found' message"""
-        parent = self.get_parent_app()
-        if parent:
+        if parent := self.get_parent_app():
             return parent.notfound()
         else:
             return web._NotFound()
             
     def internalerror(self):
         """Returns HTTPError with '500 internal error' message"""
-        parent = self.get_parent_app()
-        if parent:
+        if parent := self.get_parent_app():
             return parent.internalerror()
         elif web.config.get('debug'):
             import debugerror
@@ -469,15 +462,18 @@ class auto_application(application):
     def __init__(self):
         application.__init__(self)
 
+
+
         class metapage(type):
             def __init__(klass, name, bases, attrs):
                 type.__init__(klass, name, bases, attrs)
-                path = attrs.get('path', '/' + name)
+                path = attrs.get('path', f'/{name}')
 
                 # path can be specified as None to ignore that class
                 # typically required to create a abstract base class.
                 if path is not None:
                     self.add_mapping(path, klass)
+
 
         class page:
             path = None
@@ -515,9 +511,9 @@ class subdomain_application(application):
     def _match(self, mapping, value):
         for pat, what in utils.group(mapping, 2):
             if isinstance(what, basestring):
-                what, result = utils.re_subm('^' + pat + '$', what, value)
+                what, result = utils.re_subm(f'^{pat}$', what, value)
             else:
-                result = utils.re_compile('^' + pat + '$').match(value)
+                result = utils.re_compile(f'^{pat}$').match(value)
 
             if result: # it's a match
                 return what, [x and urllib.unquote(x) for x in result.groups()]
@@ -577,11 +573,11 @@ def autodelegate(prefix=''):
         if '/' in arg:
             first, rest = arg.split('/', 1)
             func = prefix + first
-            args = ['/' + rest]
+            args = [f'/{rest}']
         else:
             func = prefix + arg
             args = []
-        
+
         if hasattr(self, func):
             try:
                 return getattr(self, func)(*args)
@@ -589,6 +585,7 @@ def autodelegate(prefix=''):
                 return web.notfound()
         else:
             return web.notfound()
+
     return internal
 
 class Reloader:

@@ -57,8 +57,7 @@ class NodeType(type):
 
     def __new__(cls, name, bases, d):
         for attr in 'fields', 'attributes':
-            storage = []
-            storage.extend(getattr(bases[0], attr, ()))
+            storage = list(getattr(bases[0], attr, ()))
             storage.extend(d.get(attr, ()))
             assert len(bases) == 1, 'multiple inheritance not allowed'
             assert len(storage) == len(set(storage)), 'layout conflict'
@@ -150,8 +149,7 @@ class Node(object):
         for child in self.iter_child_nodes():
             if isinstance(child, node_type):
                 yield child
-            for result in child.find_all(node_type):
-                yield result
+            yield from child.find_all(node_type)
 
     def set_ctx(self, ctx):
         """Reset the context of a node and all child nodes.  Per default the
@@ -172,9 +170,8 @@ class Node(object):
         todo = deque([self])
         while todo:
             node = todo.popleft()
-            if 'lineno' in node.attributes:
-                if node.lineno is None or override:
-                    node.lineno = lineno
+            if 'lineno' in node.attributes and (node.lineno is None or override):
+                node.lineno = lineno
             todo.extend(node.iter_child_nodes())
         return self
 
@@ -407,9 +404,7 @@ class TemplateData(Literal):
     fields = ('data',)
 
     def as_const(self):
-        if self.environment.autoescape:
-            return Markup(self.data)
-        return self.data
+        return Markup(self.data) if self.environment.autoescape else self.data
 
 
 class Tuple(Literal):
@@ -423,10 +418,7 @@ class Tuple(Literal):
         return tuple(x.as_const() for x in self.items)
 
     def can_assign(self):
-        for item in self.items:
-            if not item.can_assign():
-                return False
-        return True
+        return all(item.can_assign() for item in self.items)
 
 
 class List(Literal):
@@ -508,7 +500,7 @@ class Filter(Expr):
                 raise Impossible()
         if self.dyn_kwargs is not None:
             try:
-                kwargs.update(self.dyn_kwargs.as_const())
+                kwargs |= self.dyn_kwargs.as_const()
             except:
                 raise Impossible()
         try:
@@ -551,7 +543,7 @@ class Call(Expr):
                 raise Impossible()
         if self.dyn_kwargs is not None:
             try:
-                kwargs.update(self.dyn_kwargs.as_const())
+                kwargs |= self.dyn_kwargs.as_const()
             except:
                 raise Impossible()
         try:
@@ -603,9 +595,8 @@ class Slice(Expr):
 
     def as_const(self):
         def const(obj):
-            if obj is None:
-                return obj
-            return obj.as_const()
+            return obj if obj is None else obj.as_const()
+
         return slice(const(self.start), const(self.stop), const(self.step))
 
 
@@ -642,9 +633,14 @@ class Operand(Helper):
     fields = ('op', 'expr')
 
 if __debug__:
-    Operand.__doc__ += '\nThe following operators are available: ' + \
-        ', '.join(sorted('``%s``' % x for x in set(_binop_to_func) |
-                  set(_uaop_to_func) | set(_cmpop_to_func)))
+    Operand.__doc__ += '\nThe following operators are available: ' + ', '.join(
+        sorted(
+            f'``{x}``'
+            for x in set(_binop_to_func)
+            | set(_uaop_to_func)
+            | set(_cmpop_to_func)
+        )
+    )
 
 
 class Mul(BinExpr):

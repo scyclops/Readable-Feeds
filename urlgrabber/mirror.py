@@ -287,12 +287,7 @@ class MirrorGroup:
         return gr.mirrors[gr._next]
 
     def _failure(self, gr, cb_obj):
-        # OVERRIDE IDEAS:
-        #   inspect the error - remove=1 for 404, remove=2 for connection
-        #                       refused, etc. (this can also be done via
-        #                       the callback)
-        cb = gr.kw.get('failure_callback') or self.failure_callback
-        if cb:
+        if cb := gr.kw.get('failure_callback') or self.failure_callback:
             if type(cb) == type( () ):
                 cb, args, kwargs = cb
             else:
@@ -306,7 +301,7 @@ class MirrorGroup:
         #action = action or gr.kw.get('default_action') or self.default_action
         # the other is to fall through for each element in the action dict
         a = dict(self.default_action or {})
-        a.update(gr.kw.get('default_action', {}))
+        a |= gr.kw.get('default_action', {})
         a.update(action)
         action = a
         self.increment_mirror(gr, action)
@@ -372,7 +367,7 @@ class MirrorGroup:
         if base_url.endswith('/') or rel_url.startswith('/'):
             return base_url + rel_url
         else:
-            return base_url + '/' + rel_url
+            return f'{base_url}/{rel_url}'
         
     def _mirror_try(self, func, url, kw):
         gr = GrabRequest()
@@ -454,5 +449,3 @@ class MGRandomOrder(MirrorGroup):
         MirrorGroup.__init__(self, grabber, mirrors, **kwargs)
         random.shuffle(self.mirrors)
 
-if __name__ == '__main__':
-    pass

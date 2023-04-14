@@ -53,10 +53,7 @@ def has_safe_repr(value):
                           xrange, Markup)):
         return True
     if isinstance(value, (tuple, list, set, frozenset)):
-        for item in value:
-            if not has_safe_repr(item):
-                return False
-        return True
+        return all(has_safe_repr(item) for item in value)
     elif isinstance(value, dict):
         for key, value in value.iteritems():
             if not has_safe_repr(key):
@@ -111,17 +108,15 @@ class Identifiers(object):
         """Check if a name is declared in this or an outer scope."""
         if name in self.declared_locally or name in self.declared_parameter:
             return True
-        if local_only:
-            return False
-        return name in self.declared
+        return False if local_only else name in self.declared
 
     def find_shadowed(self, extra=()):
         """Find all the shadowed names.  extra is an iterable of variables
         that may be defined with `add_special` which may occour scoped.
         """
-        return (self.declared | self.outer_undeclared) & \
-               (self.declared_locally | self.declared_parameter) | \
-               set(x for x in extra if self.is_declared(x))
+        return (self.declared | self.outer_undeclared) & (
+            self.declared_locally | self.declared_parameter
+        ) | {x for x in extra if self.is_declared(x)}
 
 
 class Frame(object):
@@ -372,14 +367,14 @@ class CodeGenerator(NodeVisitor):
     def buffer(self, frame):
         """Enable buffering for the frame from that point onwards."""
         frame.buffer = self.temporary_identifier()
-        self.writeline('%s = []' % frame.buffer)
+        self.writeline(f'{frame.buffer} = []')
 
     def return_buffer_contents(self, frame):
         """Return the buffer contents of the frame."""
         if self.environment.autoescape:
-            self.writeline('return Markup(concat(%s))' % frame.buffer)
+            self.writeline(f'return Markup(concat({frame.buffer}))')
         else:
-            self.writeline('return concat(%s)' % frame.buffer)
+            self.writeline(f'return concat({frame.buffer})')
 
     def indent(self):
         """Indent by one."""
@@ -394,7 +389,7 @@ class CodeGenerator(NodeVisitor):
         if frame.buffer is None:
             self.writeline('yield ', node)
         else:
-            self.writeline('%s.append(' % frame.buffer, node)
+            self.writeline(f'{frame.buffer}.append(', node)
 
     def end_write(self, frame):
         """End the writing process started by `start_write`."""
@@ -456,14 +451,10 @@ class CodeGenerator(NodeVisitor):
         error could occour.  The extra keyword arguments should be given
         as python dict.
         """
-        # if any of the given keyword arguments is a python keyword
-        # we have to make sure that no invalid call is created.
-        kwarg_workaround = False
-        for kwarg in chain((x.key for x in node.kwargs), extra_kwargs or ()):
-            if is_python_keyword(kwarg):
-                kwarg_workaround = True
-                break
-
+        kwarg_workaround = any(
+            is_python_keyword(kwarg)
+            for kwarg in chain((x.key for x in node.kwargs), extra_kwargs or ())
+        )
         for arg in node.args:
             self.write(', ')
             self.visit(arg, frame)
@@ -474,7 +465,7 @@ class CodeGenerator(NodeVisitor):
                 self.visit(kwarg, frame)
             if extra_kwargs is not None:
                 for key, value in extra_kwargs.iteritems():
-                    self.write(', %s=%s' % (key, value))
+                    self.write(f', {key}={value}')
         if node.dyn_args:
             self.write(', *')
             self.visit(node.dyn_args, frame)
@@ -533,24 +524,24 @@ class CodeGenerator(NodeVisitor):
         aliases = {}
         for name in frame.identifiers.find_shadowed(extra_vars):
             aliases[name] = ident = self.temporary_identifier()
-            self.writeline('%s = l_%s' % (ident, name))
-        to_declare = set()
-        for name in frame.identifiers.declared_locally:
-            if name not in aliases:
-                to_declare.add('l_' + name)
-        if to_declare:
+            self.writeline(f'{ident} = l_{name}')
+        if to_declare := {
+            f'l_{name}'
+            for name in frame.identifiers.declared_locally
+            if name not in aliases
+        }:
             self.writeline(' = '.join(to_declare) + ' = missing')
         return aliases
 
     def pop_scope(self, aliases, frame):
         """Restore all aliases and delete unused variables."""
         for name, alias in aliases.iteritems():
-            self.writeline('l_%s = %s' % (name, alias))
-        to_delete = set()
-        for name in frame.identifiers.declared_locally:
-            if name not in aliases:
-                to_delete.add('l_' + name)
-        if to_delete:
+            self.writeline(f'l_{name} = {alias}')
+        if to_delete := {
+            f'l_{name}'
+            for name in frame.identifiers.declared_locally
+            if name not in aliases
+        }:
             self.writeline('del ' + ', '.join(to_delete))
 
     def function_scoping(self, node, frame, children=None,
@@ -573,17 +564,14 @@ class CodeGenerator(NodeVisitor):
         func_frame = frame.inner()
         func_frame.inspect(children, hard_scope=True)
 
-        # variables that are undeclared (accessed before declaration) and
-        # declared locally *and* part of an outside scope raise a template
-        # assertion error. Reason: we can't generate reasonable code from
-        # it without aliasing all the variables.  XXX: alias them ^^
-        overriden_closure_vars = (
-            func_frame.identifiers.undeclared &
-            func_frame.identifiers.declared &
-            (func_frame.identifiers.declared_locally |
-             func_frame.identifiers.declared_parameter)
-        )
-        if overriden_closure_vars:
+        if overriden_closure_vars := (
+            func_frame.identifiers.undeclared
+            & func_frame.identifiers.declared
+            & (
+                func_frame.identifiers.declared_locally
+                | func_frame.identifiers.declared_parameter
+            )
+        ):
             self.fail('It\'s not possible to set and access variables '
                       'derived from an outer scope! (affects: %s' %
                       ', '.join(sorted(overriden_closure_vars)), node.lineno)
@@ -602,7 +590,7 @@ class CodeGenerator(NodeVisitor):
         func_frame.accesses_kwargs = False
         func_frame.accesses_varargs = False
         func_frame.accesses_caller = False
-        func_frame.arguments = args = ['l_' + x.name for x in node.args]
+        func_frame.arguments = args = [f'l_{x.name}' for x in node.args]
 
         undeclared = find_undeclared(children, ('caller', 'kwargs', 'varargs'))
 
@@ -626,7 +614,7 @@ class CodeGenerator(NodeVisitor):
         # macros are delayed, they never require output checks
         frame.require_output_check = False
         args = frame.arguments
-        self.writeline('def macro(%s):' % ', '.join(args), node)
+        self.writeline(f"def macro({', '.join(args)}):", node)
         self.indent()
         self.buffer(frame)
         self.pull_locals(frame)
@@ -656,7 +644,7 @@ class CodeGenerator(NodeVisitor):
         """Return a human readable position for the node."""
         rv = 'line %d' % node.lineno
         if self.name is not None:
-            rv += ' in ' + repr(self.name)
+            rv += f' in {repr(self.name)}'
         return rv
 
     # -- Statement Visitors
@@ -684,10 +672,9 @@ class CodeGenerator(NodeVisitor):
                 self.import_aliases[imp] = alias = self.temporary_identifier()
                 if '.' in imp:
                     module, obj = imp.rsplit('.', 1)
-                    self.writeline('from %s import %s as %s' %
-                                   (module, obj, alias))
+                    self.writeline(f'from {module} import {obj} as {alias}')
                 else:
-                    self.writeline('import %s as %s' % (imp, alias))
+                    self.writeline(f'import {imp} as {alias}')
 
         # add the load name
         self.writeline('name = %r' % self.name)
@@ -728,8 +715,9 @@ class CodeGenerator(NodeVisitor):
             block_frame = Frame()
             block_frame.inspect(block.body)
             block_frame.block = name
-            self.writeline('def block_%s(context, environment=environment):'
-                           % name, block, 1)
+            self.writeline(
+                f'def block_{name}(context, environment=environment):', block, 1
+            )
             self.indent()
             undeclared = find_undeclared(block.body, ('self', 'super'))
             if 'self' in undeclared:
@@ -836,7 +824,7 @@ class CodeGenerator(NodeVisitor):
 
     def visit_Import(self, node, frame):
         """Visit regular imports."""
-        self.writeline('l_%s = ' % node.target, node)
+        self.writeline(f'l_{node.target} = ', node)
         if frame.toplevel:
             self.write('context.vars[%r] = ' % node.target)
         self.write('environment.get_template(')
@@ -860,8 +848,8 @@ class CodeGenerator(NodeVisitor):
         else:
             self.write('module')
 
-        var_names = []
         discarded_names = []
+        var_names = []
         for name in node.names:
             if isinstance(name, tuple):
                 name, alias = name
@@ -869,7 +857,7 @@ class CodeGenerator(NodeVisitor):
                 alias = name
             self.writeline('l_%s = getattr(included_template, '
                            '%r, missing)' % (alias, name))
-            self.writeline('if l_%s is missing:' % alias)
+            self.writeline(f'if l_{alias} is missing:')
             self.indent()
             self.writeline('l_%s = environment.undefined(%r %% '
                            'included_template.__name__, '
@@ -898,8 +886,9 @@ class CodeGenerator(NodeVisitor):
                 self.writeline('context.exported_vars.discard(%r)' %
                                discarded_names[0])
             else:
-                self.writeline('context.exported_vars.difference_'
-                               'update((%s))' % ', '.join(map(repr, discarded_names)))
+                self.writeline(
+                    f"context.exported_vars.difference_update(({', '.join(map(repr, discarded_names))}))"
+                )
 
     def visit_For(self, node, frame):
         # when calculating the nodes for the inner frame we have to exclude
@@ -916,7 +905,7 @@ class CodeGenerator(NodeVisitor):
         # is necessary if the loop is in recursive mode if the special loop
         # variable is accessed in the body.
         extended_loop = node.recursive or 'loop' in \
-                        find_undeclared(node.iter_child_nodes(
+                            find_undeclared(node.iter_child_nodes(
                             only=('body',)), ('loop',))
 
         # if we don't have an recursive loop we have to find the shadowed
@@ -944,7 +933,7 @@ class CodeGenerator(NodeVisitor):
         self.pull_locals(loop_frame)
         if node.else_:
             iteration_indicator = self.temporary_identifier()
-            self.writeline('%s = 1' % iteration_indicator)
+            self.writeline(f'{iteration_indicator} = 1')
 
         # Create a fake parent loop if the else or test section of a
         # loop is accessing the special loop variable and no parent loop
@@ -1002,11 +991,11 @@ class CodeGenerator(NodeVisitor):
         self.indent()
         self.blockvisit(node.body, loop_frame)
         if node.else_:
-            self.writeline('%s = 0' % iteration_indicator)
+            self.writeline(f'{iteration_indicator} = 0')
         self.outdent()
 
         if node.else_:
-            self.writeline('if %s:' % iteration_indicator)
+            self.writeline(f'if {iteration_indicator}:')
             self.indent()
             self.blockvisit(node.else_, loop_frame)
             self.outdent()
@@ -1047,7 +1036,7 @@ class CodeGenerator(NodeVisitor):
             if not node.name.startswith('_'):
                 self.write('context.exported_vars.add(%r)' % node.name)
             self.writeline('context.vars[%r] = ' % node.name)
-        self.write('l_%s = ' % node.name)
+        self.write(f'l_{node.name} = ')
         self.macro_def(node, macro_frame)
 
     def visit_CallBlock(self, node, frame):
@@ -1106,10 +1095,7 @@ class CodeGenerator(NodeVisitor):
                 continue
             try:
                 if self.environment.autoescape:
-                    if hasattr(const, '__html__'):
-                        const = const.__html__()
-                    else:
-                        const = escape(const)
+                    const = const.__html__() if hasattr(const, '__html__') else escape(const)
                 const = finalize(const)
             except:
                 # if something goes wrong here we evaluate the node
@@ -1134,9 +1120,9 @@ class CodeGenerator(NodeVisitor):
                 if isinstance(item, list):
                     val = repr(concat(item))
                     if frame.buffer is None:
-                        self.writeline('yield ' + val)
+                        self.writeline(f'yield {val}')
                     else:
-                        self.writeline(val + ', ')
+                        self.writeline(f'{val}, ')
                 else:
                     if frame.buffer is None:
                         self.writeline('yield ', item)
@@ -1159,7 +1145,6 @@ class CodeGenerator(NodeVisitor):
                 self.outdent()
                 self.writeline(len(body) == 1 and ')' or '))')
 
-        # otherwise we create a format string as this is faster in that case
         else:
             format = []
             arguments = []
@@ -1224,15 +1209,16 @@ class CodeGenerator(NodeVisitor):
                     self.writeline('context.exported_vars.add(%r)' %
                                    public_names[0])
                 else:
-                    self.writeline('context.exported_vars.update((%s))' %
-                                   ', '.join(map(repr, public_names)))
+                    self.writeline(
+                        f"context.exported_vars.update(({', '.join(map(repr, public_names))}))"
+                    )
 
     # -- Expression Visitors
 
     def visit_Name(self, node, frame):
         if node.ctx == 'store' and frame.toplevel:
             frame.assigned_names.add(node.name)
-        self.write('l_' + node.name)
+        self.write(f'l_{node.name}')
 
     def visit_Const(self, node, frame):
         val = node.value
@@ -1275,16 +1261,18 @@ class CodeGenerator(NodeVisitor):
         def visitor(self, node, frame):
             self.write('(')
             self.visit(node.left, frame)
-            self.write(' %s ' % operator)
+            self.write(f' {operator} ')
             self.visit(node.right, frame)
             self.write(')')
+
         return visitor
 
     def uaop(operator):
         def visitor(self, node, frame):
-            self.write('(' + operator)
+            self.write(f'({operator}')
             self.visit(node.node, frame)
             self.write(')')
+
         return visitor
 
     visit_Add = binop('+')
@@ -1315,7 +1303,7 @@ class CodeGenerator(NodeVisitor):
             self.visit(op, frame)
 
     def visit_Operand(self, node, frame):
-        self.write(' %s ' % operators[node.op])
+        self.write(f' {operators[node.op]} ')
         self.visit(node.expr, frame)
 
     def visit_Getattr(self, node, frame):
@@ -1348,7 +1336,7 @@ class CodeGenerator(NodeVisitor):
             self.visit(node.step, frame)
 
     def visit_Filter(self, node, frame):
-        self.write(self.filters[node.name] + '(')
+        self.write(f'{self.filters[node.name]}(')
         func = self.environment.filters.get(node.name)
         if func is None:
             self.fail('no filter named %r' % node.name, node.lineno)
@@ -1362,14 +1350,14 @@ class CodeGenerator(NodeVisitor):
         if node.node is not None:
             self.visit(node.node, frame)
         elif self.environment.autoescape:
-            self.write('Markup(concat(%s))' % frame.buffer)
+            self.write(f'Markup(concat({frame.buffer}))')
         else:
-            self.write('concat(%s)' % frame.buffer)
+            self.write(f'concat({frame.buffer})')
         self.signature(node, frame)
         self.write(')')
 
     def visit_Test(self, node, frame):
-        self.write(self.tests[node.name] + '(')
+        self.write(f'{self.tests[node.name]}(')
         if node.name not in self.environment.tests:
             self.fail('no test named %r' % node.name, node.lineno)
         self.visit(node.node, frame)
@@ -1407,12 +1395,12 @@ class CodeGenerator(NodeVisitor):
         else:
             self.write('context.call(')
         self.visit(node.node, frame)
-        extra_kwargs = forward_caller and {'caller': 'caller'} or None
+        extra_kwargs = {'caller': 'caller'} if forward_caller else None
         self.signature(node, frame, extra_kwargs)
         self.write(')')
 
     def visit_Keyword(self, node, frame):
-        self.write(node.key + '=')
+        self.write(f'{node.key}=')
         self.visit(node.value, frame)
 
     # -- Unused nodes for extensions
@@ -1423,7 +1411,7 @@ class CodeGenerator(NodeVisitor):
         self.write(')')
 
     def visit_EnvironmentAttribute(self, node, frame):
-        self.write('environment.' + node.name)
+        self.write(f'environment.{node.name}')
 
     def visit_ExtensionAttribute(self, node, frame):
         self.write('environment.extensions[%r].%s' % (node.identifier, node.name))

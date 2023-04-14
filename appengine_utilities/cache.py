@@ -96,20 +96,20 @@ class Cache(object):
         #    result.delete()
 
     def _validate_key(self, key):
-        if key == None:
+        if key is None:
             raise KeyError
 
     def _validate_value(self, value):
-        if value == None:
+        if value is None:
             raise ValueError
 
     def _validate_timeout(self, timeout):
-        if timeout == None:
+        if timeout is None:
             timeout = datetime.datetime.now() +\
-            datetime.timedelta(seconds=DEFAULT_TIMEOUT)
+                datetime.timedelta(seconds=DEFAULT_TIMEOUT)
         if type(timeout) == type(1):
             timeout = datetime.datetime.now() + \
-                datetime.timedelta(seconds = timeout)
+                    datetime.timedelta(seconds = timeout)
         if type(timeout) != datetime.datetime:
             raise TypeError
         if timeout < datetime.datetime.now():
@@ -145,7 +145,7 @@ class Cache(object):
             pass
 
         memcache_timeout = timeout - datetime.datetime.now()
-        memcache.set('cache-'+key, value, int(memcache_timeout.seconds))
+        memcache.set(f'cache-{key}', value, int(memcache_timeout.seconds))
 
         if 'AEU_Events' in __main__.__dict__:
             __main__.AEU_Events.fire_event('cacheAdded')
@@ -172,7 +172,7 @@ class Cache(object):
             pass
 
         memcache_timeout = timeout - datetime.datetime.now()
-        memcache.set('cache-'+key, value, int(memcache_timeout.seconds))
+        memcache.set(f'cache-{key}', value, int(memcache_timeout.seconds))
 
         if 'AEU_Events' in __main__.__dict__:
             __main__.AEU_Events.fire_event('cacheSet')
@@ -189,22 +189,14 @@ class Cache(object):
         query.filter('cachekey', key)
         query.filter('timeout > ', datetime.datetime.now())
         results = query.fetch(1)
-        if len(results) is 0:
-            return None
-        return results[0]
-
-        if 'AEU_Events' in __main__.__dict__:
-            __main__.AEU_Events.fire_event('cacheReadFromDatastore')
-        if 'AEU_Events' in __main__.__dict__:
-            __main__.AEU_Events.fire_event('cacheRead')
+        return None if len(results) is 0 else results[0]
 
     def delete(self, key = None):
         """
         Deletes a cache object determined by the key.
         """
-        memcache.delete('cache-'+key)
-        result = self._read(key)
-        if result:
+        memcache.delete(f'cache-{key}')
+        if result := self._read(key):
             if 'AEU_Events' in __main__.__dict__:
                 __main__.AEU_Events.fire_event('cacheDeleted')
             result.delete()
@@ -213,19 +205,16 @@ class Cache(object):
         """
         get is used to return the cache value associated with the key passed.
         """
-        mc = memcache.get('cache-'+key)
-        if mc:
+        if mc := memcache.get(f'cache-{key}'):
             if 'AEU_Events' in __main__.__dict__:
                 __main__.AEU_Events.fire_event('cacheReadFromMemcache')
             if 'AEU_Events' in __main__.__dict__:
                 __main__.AEU_Events.fire_event('cacheRead')
             return mc
-        result = self._read(key)
-        if result:
+        if result := self._read(key):
             timeout = result.timeout - datetime.datetime.now()
             # print timeout.seconds
-            memcache.set('cache-'+key, pickle.loads(result.value),
-               int(timeout.seconds))
+            memcache.set(f'cache-{key}', pickle.loads(result.value), int(timeout.seconds))
             return pickle.loads(result.value)
         else:
             raise KeyError

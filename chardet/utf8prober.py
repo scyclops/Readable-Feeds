@@ -60,17 +60,18 @@ class UTF8Prober(CharSetProber):
                 if self._mCodingSM.get_current_charlen() >= 2:
                     self._mNumOfMBChar += 1
 
-        if self.get_state() == constants.eDetecting:
-            if self.get_confidence() > constants.SHORTCUT_THRESHOLD:
-                self._mState = constants.eFoundIt
+        if (
+            self.get_state() == constants.eDetecting
+            and self.get_confidence() > constants.SHORTCUT_THRESHOLD
+        ):
+            self._mState = constants.eFoundIt
 
         return self.get_state()
 
     def get_confidence(self):
         unlike = 0.99
-        if self._mNumOfMBChar < 6:
-            for i in range(0, self._mNumOfMBChar):
-                unlike = unlike * ONE_CHAR_PROB
-            return 1.0 - unlike
-        else:
+        if self._mNumOfMBChar >= 6:
             return unlike
+        for _ in range(self._mNumOfMBChar):
+            unlike = unlike * ONE_CHAR_PROB
+        return 1.0 - unlike

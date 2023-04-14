@@ -41,10 +41,13 @@ class Event(object):
         """
         This method will subscribe a callback function to an event name.
         """
-        if not {"event": event, "callback": callback, "args": args, } \
-            in self.events:
+        if {
+            "event": event,
+            "callback": callback,
+            "args": args,
+        } not in self.events:
             self.events.append({"event": event, "callback": callback, \
-                "args": args, })
+                    "args": args, })
 
     def unsubscribe(self, event, callback, args = None):
         """
@@ -66,7 +69,7 @@ class Event(object):
                     e["callback"](*e["args"])
                 elif type(e["args"]) == type({}):
                     e["callback"](**e["args"])
-                elif e["args"] == None:
+                elif e["args"] is None:
                     e["callback"]()
                 else:
                     e["callback"](e["args"])

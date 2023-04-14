@@ -45,8 +45,7 @@ def _random_session():
     n = random.random()
     while n in sessions:
         n = random.random()
-    n = str(n)
-    return n
+    return str(n)
 
 def status():
     oid_hash = web.cookies().get('openid_identity_hash', '').split(',', 1)
@@ -57,8 +56,7 @@ def status():
     return None
 
 def form(openid_loc):
-    oid = status()
-    if oid:
+    if oid := status():
         return '''
         <form method="post" action="%s">
           <img src="http://openid.net/login-bg.gif" alt="OpenID" />
@@ -109,7 +107,9 @@ class host:
         a = c.complete(web.input(), web.ctx.home + web.ctx.fullpath)
 
         if a.status.lower() == 'success':
-            web.setcookie('openid_identity_hash', _hmac(a.identity_url) + ',' + a.identity_url)
+            web.setcookie(
+                'openid_identity_hash', f'{_hmac(a.identity_url)},{a.identity_url}'
+            )
 
         del sessions[n]
         return web.redirect(return_to)

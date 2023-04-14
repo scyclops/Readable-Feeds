@@ -32,7 +32,7 @@ class Feed(db.Model):
     title = db.StringProperty(default='')
 
     def feed_url(self):
-        return '/readability/feed?url=%s' % urlquote(self.url)
+        return f'/readability/feed?url={urlquote(self.url)}'
     
 
 class ReadabilityHandler(RenderHandler):

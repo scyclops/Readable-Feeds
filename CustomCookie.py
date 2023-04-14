@@ -317,10 +317,10 @@ def _quote(str, LegalChars=_LegalChars,
     # the string in doublequotes and precede quote (with a \)
     # special characters.
     #
-    if "" == translate(str, idmap, LegalChars):
+    if translate(str, idmap, LegalChars) == "":
         return str
     else:
-        return '"' + _nulljoin( map(_Translator.get, str, str) ) + '"'
+        return f'"{_nulljoin(map(_Translator.get, str, str))}"'
 # end _quote
 
 
@@ -359,12 +359,10 @@ def _unquote(str):
         if Omatch: j = Omatch.start(0)
         if Qmatch: k = Qmatch.start(0)
         if Qmatch and ( not Omatch or k < j ):     # QuotePatt matched
-            res.append(str[i:k])
-            res.append(str[k+1])
+            res.extend((str[i:k], str[k+1]))
             i = k+2
-        else:                                      # OctalPatt matched
-            res.append(str[i:j])
-            res.append( chr( int(str[j+1:j+4], 8) ) )
+        else:                              # OctalPatt matched
+            res.extend((str[i:j], chr( int(str[j+1:j+4], 8) )))
             i = j+4
     return _nulljoin(res)
 # end _unquote
@@ -437,8 +435,8 @@ class Morsel(dict):
 
     def __setitem__(self, K, V):
         K = K.lower()
-        if not K in self._reserved:
-            raise CookieError("Invalid Attribute %s" % K)
+        if K not in self._reserved:
+            raise CookieError(f"Invalid Attribute {K}")
         dict.__setitem__(self, K, V)
     # end __setitem__
 
@@ -452,9 +450,9 @@ class Morsel(dict):
         # First we verify that the key isn't a reserved word
         # Second we make sure it only contains legal characters
         if key.lower() in self._reserved:
-            raise CookieError("Attempt to set a reserved key: %s" % key)
-        if "" != translate(key, idmap, LegalChars):
-            raise CookieError("Illegal key value: %s" % key)
+            raise CookieError(f"Attempt to set a reserved key: {key}")
+        if translate(key, idmap, LegalChars) != "":
+            raise CookieError(f"Illegal key value: {key}")
 
         # It's a good key, so save it.
         self.key                 = key
@@ -463,13 +461,12 @@ class Morsel(dict):
     # end set
 
     def output(self, attrs=None, header = "Set-Cookie:"):
-        return "%s %s" % ( header, self.OutputString(attrs) )
+        return f"{header} {self.OutputString(attrs)}"
 
     __str__ = output
 
     def __repr__(self):
-        return '<%s: %s=%s>' % (self.__class__.__name__,
-                                self.key, repr(self.value) )
+        return f'<{self.__class__.__name__}: {self.key}={repr(self.value)}>'
 
     def js_output(self, attrs=None):
         # Print javascript
@@ -489,7 +486,7 @@ class Morsel(dict):
         RA = result.append
 
         # First, the key=value pair
-        RA("%s=%s" % (self.key, self.coded_value))
+        RA(f"{self.key}={self.coded_value}")
 
         # Now add any defined attributes
         if attrs is None:
@@ -500,7 +497,7 @@ class Morsel(dict):
             if V == "": continue
             if K not in attrs: continue
             if K == "expires" and type(V) == type(1):
-                RA("%s=%s" % (self._reserved[K], _getdate(V)))
+                RA(f"{self._reserved[K]}={_getdate(V)}")
             elif K == "max-age" and type(V) == type(1):
                 RA("%s=%d" % (self._reserved[K], V))
             elif K == "secure":
@@ -508,7 +505,7 @@ class Morsel(dict):
             elif K == "httponly":
                 RA(str(self._reserved[K]))
             else:
-                RA("%s=%s" % (self._reserved[K], V))
+                RA(f"{self._reserved[K]}={V}")
 
         # Return the result
         return _semispacejoin(result)
@@ -589,31 +586,25 @@ class BaseCookie(dict):
 
     def output(self, attrs=None, header="Set-Cookie:", sep="\015\012"):
         """Return a string suitable for HTTP."""
-        result = []
         items = self.items()
         items.sort()
-        for K,V in items:
-            result.append( V.output(attrs, header) )
+        result = [V.output(attrs, header) for K, V in items]
         return sep.join(result)
     # end output
 
     __str__ = output
 
     def __repr__(self):
-        L = []
         items = self.items()
         items.sort()
-        for K,V in items:
-            L.append( '%s=%s' % (K,repr(V.value) ) )
-        return '<%s: %s>' % (self.__class__.__name__, _spacejoin(L))
+        L = [f'{K}={repr(V.value)}' for K, V in items]
+        return f'<{self.__class__.__name__}: {_spacejoin(L)}>'
 
     def js_output(self, attrs=None):
         """Return a string suitable for JavaScript."""
-        result = []
         items = self.items()
         items.sort()
-        for K,V in items:
-            result.append( V.js_output(attrs) )
+        result = [V.js_output(attrs) for K, V in items]
         return _nulljoin(result)
     # end js_output
 

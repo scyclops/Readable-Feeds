@@ -80,17 +80,19 @@ class SingleByteCharSetProber(CharSetProber):
                         self._mSeqCounters[self._mModel['precedenceMatrix'][(order * SAMPLE_SIZE) + self._mLastOrder]] += 1
             self._mLastOrder = order
 
-        if self.get_state() == constants.eDetecting:
-            if self._mTotalSeqs > SB_ENOUGH_REL_THRESHOLD:
-                cf = self.get_confidence()
-                if cf > POSITIVE_SHORTCUT_THRESHOLD:
-                    if constants._debug:
-                        sys.stderr.write('%s confidence = %s, we have a winner\n' % (self._mModel['charsetName'], cf))
-                    self._mState = constants.eFoundIt
-                elif cf < NEGATIVE_SHORTCUT_THRESHOLD:
-                    if constants._debug:
-                        sys.stderr.write('%s confidence = %s, below negative shortcut threshhold %s\n' % (self._mModel['charsetName'], cf, NEGATIVE_SHORTCUT_THRESHOLD))
-                    self._mState = constants.eNotMe
+        if (
+            self.get_state() == constants.eDetecting
+            and self._mTotalSeqs > SB_ENOUGH_REL_THRESHOLD
+        ):
+            cf = self.get_confidence()
+            if cf > POSITIVE_SHORTCUT_THRESHOLD:
+                if constants._debug:
+                    sys.stderr.write('%s confidence = %s, we have a winner\n' % (self._mModel['charsetName'], cf))
+                self._mState = constants.eFoundIt
+            elif cf < NEGATIVE_SHORTCUT_THRESHOLD:
+                if constants._debug:
+                    sys.stderr.write('%s confidence = %s, below negative shortcut threshhold %s\n' % (self._mModel['charsetName'], cf, NEGATIVE_SHORTCUT_THRESHOLD))
+                self._mState = constants.eNotMe
 
         return self.get_state()
 

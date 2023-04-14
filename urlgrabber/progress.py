@@ -47,7 +47,8 @@ class BaseMeter:
 
         #size = None #########  TESTING
         self.size = size
-        if not size is None: self.fsize = format_number(size) + 'B'
+        if size is not None:
+            self.fsize = f'{format_number(size)}B'
 
         if now is None: now = time.time()
         self.start_time = now
@@ -93,13 +94,10 @@ class TextMeter(BaseMeter):
         fetime = format_time(etime)
         fread = format_number(amount_read)
         #self.size = None
-        if self.text is not None:
-            text = self.text
-        else:
-            text = self.basename
+        text = self.text if self.text is not None else self.basename
         if self.size is None:
             out = '\r%-60.60s    %5sB %s ' % \
-                  (text, fread, fetime)
+                      (text, fread, fetime)
         else:
             rtime = self.re.remaining_time()
             frtime = format_time(rtime)
@@ -107,7 +105,7 @@ class TextMeter(BaseMeter):
             bar = '='*int(25 * frac)
 
             out = '\r%-25.25s %3i%% |%-25.25s| %5sB %8s ETA ' % \
-                  (text, frac*100, bar, fread, frtime)
+                      (text, frac*100, bar, fread, frtime)
 
         self.fo.write(out)
         self.fo.flush()
@@ -115,17 +113,14 @@ class TextMeter(BaseMeter):
     def _do_end(self, amount_read, now=None):
         total_time = format_time(self.re.elapsed_time())
         total_size = format_number(amount_read)
-        if self.text is not None:
-            text = self.text
-        else:
-            text = self.basename
+        text = self.text if self.text is not None else self.basename
         if self.size is None:
             out = '\r%-60.60s    %5sB %s ' % \
-                  (text, total_size, total_time)
+                      (text, total_size, total_time)
         else:
             bar = '='*25
             out = '\r%-25.25s %3i%% |%-25.25s| %5sB %8s     ' % \
-                  (text, 100, bar, total_size, total_time)
+                      (text, 100, bar, total_size, total_time)
         self.fo.write(out + '\n')
         self.fo.flush()
 
@@ -213,11 +208,11 @@ class MultiFileMeter:
     ###########################################################
     # child functions - these should only be called by helpers
     def start_meter(self, meter, now):
-        if not meter in self.meters:
+        if meter not in self.meters:
             raise ValueError('attempt to use orphaned meter')
         self._lock.acquire()
         try:
-            if not meter in self.in_progress_meters:
+            if meter not in self.in_progress_meters:
                 self.in_progress_meters.append(meter)
                 self.open_files += 1
         finally:
@@ -228,10 +223,10 @@ class MultiFileMeter:
         pass
         
     def update_meter(self, meter, now):
-        if not meter in self.meters:
+        if meter not in self.meters:
             raise ValueError('attempt to use orphaned meter')
         if (now >= self.last_update_time + self.update_period) or \
-               not self.last_update_time:
+                   not self.last_update_time:
             self.re.update(self._amount_read(), now)
             self.last_update_time = now
             self._do_update_meter(meter, now)
@@ -240,7 +235,7 @@ class MultiFileMeter:
         pass
 
     def end_meter(self, meter, now):
-        if not meter in self.meters:
+        if meter not in self.meters:
             raise ValueError('attempt to use orphaned meter')
         self._lock.acquire()
         try:
@@ -257,7 +252,7 @@ class MultiFileMeter:
         pass
 
     def failure_meter(self, meter, message, now):
-        if not meter in self.meters:
+        if meter not in self.meters:
             raise ValueError('attempt to use orphaned meter')
         self._lock.acquire()
         try:
@@ -298,7 +293,7 @@ class TextMultiFileMeter(MultiFileMeter):
         self._lock.acquire()
         try:
             format = "files: %3i/%-3i %3i%%   data: %6.6s/%-6.6s %3i%%   " \
-                     "time: %8.8s/%8.8s"
+                         "time: %8.8s/%8.8s"
             df = self.finished_files
             tf = self.numfiles or 1
             pf = 100 * float(df)/tf + 0.49
@@ -307,14 +302,12 @@ class TextMultiFileMeter(MultiFileMeter):
             pd = 100 * (self.re.fraction_read() or 0) + 0.49
             dt = self.re.elapsed_time()
             rt = self.re.remaining_time()
-            if rt is None: tt = None
-            else: tt = dt + rt
-
-            fdd = format_number(dd) + 'B'
-            ftd = format_number(td) + 'B'
+            tt = None if rt is None else dt + rt
+            fdd = f'{format_number(dd)}B'
+            ftd = f'{format_number(td)}B'
             fdt = format_time(dt, 1)
             ftt = format_time(tt, 1)
-            
+
             out = '%-79.79s' % (format % (df, tf, pf, fdd, ftd, pd, fdt, ftt))
             self.fo.write('\r' + out)
             self.fo.flush()
@@ -327,11 +320,11 @@ class TextMultiFileMeter(MultiFileMeter):
             format = "%-30.30s %6.6s    %8.8s    %9.9s"
             fn = meter.basename
             size = meter.last_amount_read
-            fsize = format_number(size) + 'B'
+            fsize = f'{format_number(size)}B'
             et = meter.re.elapsed_time()
             fet = format_time(et, 1)
-            frate = format_number(size / et) + 'B/s'
-            
+            frate = f'{format_number(size / et)}B/s'
+
             out = '%-79.79s' % (format % (fn, fsize, fet, frate))
             self.fo.write('\r' + out + '\n')
         finally:
@@ -348,7 +341,8 @@ class TextMultiFileMeter(MultiFileMeter):
             if not message: message = ['']
             out = '%-79s' % (format % (fn, 'FAILED', message[0] or ''))
             self.fo.write('\r' + out + '\n')
-            for m in message[1:]: self.fo.write('  ' + m + '\n')
+            for m in message[1:]:
+                self.fo.write(f'  {m}' + '\n')
             self._lock.release()
         finally:
             self._do_update_meter(meter, now)
@@ -471,24 +465,20 @@ class RateEstimator:
         if rt < 0: return 0.0
         shift = int(math.log(rt/start_time)/math.log(2))
         rt = int(rt)
-        if shift <= 0: return rt
-        return float(int(rt) >> shift << shift)
+        return rt if shift <= 0 else float(rt >> shift << shift)
         
 
 def format_time(seconds, use_hours=0):
     if seconds is None or seconds < 0:
-        if use_hours: return '--:--:--'
-        else:         return '--:--'
-    else:
-        seconds = int(seconds)
-        minutes = seconds / 60
-        seconds = seconds % 60
-        if use_hours:
-            hours = minutes / 60
-            minutes = minutes % 60
-            return '%02i:%02i:%02i' % (hours, minutes, seconds)
-        else:
-            return '%02i:%02i' % (minutes, seconds)
+        return '--:--:--' if use_hours else '--:--'
+    seconds = int(seconds)
+    minutes = seconds / 60
+    seconds %= 60
+    if not use_hours:
+        return '%02i:%02i' % (minutes, seconds)
+    hours = minutes / 60
+    minutes = minutes % 60
+    return '%02i:%02i:%02i' % (hours, minutes, seconds)
             
 def format_number(number, SI=0, space=' '):
     """Turn numbers into human-readable metric-like numbers"""

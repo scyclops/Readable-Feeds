@@ -245,7 +245,7 @@ class FileRangeHandler(urllib2.FileHandler):
         headers = mimetools.Message(StringIO(
             'Content-Type: %s\nContent-Length: %d\nLast-modified: %s\n' %
             (mtype or 'text/plain', size, modified)))
-        return urllib.addinfourl(fo, headers, 'file:'+file)
+        return urllib.addinfourl(fo, headers, f'file:{file}')
 
 
 # FTP Range Support 
@@ -342,8 +342,7 @@ class FTPRangeHandler(urllib2.FTPHandler):
             raise IOError, ('ftp error', msg), sys.exc_info()[2]
 
     def connect_ftp(self, user, passwd, host, port, dirs):
-        fw = ftpwrapper(user, passwd, host, port, dirs)
-        return fw
+        return ftpwrapper(user, passwd, host, port, dirs)
 
 class ftpwrapper(urllib.ftpwrapper):
     # range support note:
@@ -417,8 +416,7 @@ def range_header_to_tuple(range_header):
     if _rangere is None:
         import re
         _rangere = re.compile(r'^bytes=(\d{1,})-(\d*)')
-    match = _rangere.match(range_header)
-    if match: 
+    if match := _rangere.match(range_header):
         tup = range_tuple_normalize(match.group(1,2))
         if tup and tup[1]: 
             tup = (tup[0],tup[1]+1)
@@ -431,8 +429,7 @@ def range_tuple_to_header(range_tup):
     if no range is needed.
     """
     if range_tup is None: return None
-    range_tup = range_tuple_normalize(range_tup)
-    if range_tup:
+    if range_tup := range_tuple_normalize(range_tup):
         if range_tup[1]: 
             range_tup = (range_tup[0],range_tup[1] - 1)
         return 'bytes=%s-%s' % range_tup
@@ -447,8 +444,7 @@ def range_tuple_normalize(range_tup):
     if range_tup is None: return None
     # handle first byte
     fb = range_tup[0]
-    if fb in (None,''): fb = 0
-    else: fb = int(fb)
+    fb = 0 if fb in (None,'') else int(fb)
     # handle last byte
     try: lb = range_tup[1]
     except IndexError: lb = ''
@@ -458,6 +454,7 @@ def range_tuple_normalize(range_tup):
     # check if range is over the entire file
     if (fb,lb) == (0,''): return None
     # check that the range is valid
-    if lb < fb: raise RangeError('Invalid byte range: %s-%s' % (fb,lb))
+    if lb < fb:
+        raise RangeError(f'Invalid byte range: {fb}-{lb}')
     return (fb,lb)
 

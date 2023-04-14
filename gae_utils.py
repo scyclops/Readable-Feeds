@@ -35,43 +35,36 @@ from web import urlquote
 
 from appengine_utilities.sessions import Session
 
-DEV = False
-if 'DEV' in os.listdir('.'):
-    DEV = True
-
+DEV = 'DEV' in os.listdir('.')
 ENV = Environment(loader=FileSystemLoader('templates/'), autoescape=True,
                   auto_reload=DEV, line_statement_prefix='#')
 
 def cond(c, str, other=''):
-  if c:
-    return str
-  return other
+    return str if c else other
 ENV.globals['cond'] = cond
 
 ENV.globals['urlquote'] = urlquote
 
 
 def number_format(num, places=0):
-   """Format a number with grouped thousands and given decimal places"""
+    """Format a number with grouped thousands and given decimal places"""
 
-   # in utils, commify(n) adds commas to an int
+    # in utils, commify(n) adds commas to an int
 
-   places = max(0,places)
-   tmp = "%.*f" % (places, num)
-   point = tmp.find(".")
-   integer = (point == -1) and tmp or tmp[:point]
-   decimal = (point != -1) and tmp[point:] or ""
+    places = max(0,places)
+    tmp = "%.*f" % (places, num)
+    point = tmp.find(".")
+    integer = (point == -1) and tmp or tmp[:point]
+    decimal = (point != -1) and tmp[point:] or ""
 
-   count = 0
-   formatted = []
-   for i in range(len(integer), 0, -1):
-       count += 1
-       formatted.append(integer[i - 1])
-       if count % 3 == 0 and i - 1:
-           formatted.append(",")
+    formatted = []
+    for count, i in enumerate(range(len(integer), 0, -1), start=1):
+        formatted.append(integer[i - 1])
+        if count % 3 == 0 and i - 1:
+            formatted.append(",")
 
-   integer = "".join(formatted[::-1])
-   return integer+decimal
+    integer = "".join(formatted[::-1])
+    return integer+decimal
 ENV.filters['number_format'] = number_format
 
 
@@ -91,11 +84,13 @@ ENV.globals['simple_name'] = simple_name
 def valid_email(email):
     if len(email) <= 5: # a@b.ca
         return False
-    
-    if not re.match("^.+\\@(\\[?)[a-zA-Z0-9\\-\\.]+\\.([a-zA-Z]{2,3}|[0-9]{1,3})(\\]?)$", email):
-        return False
-    
-    return True
+
+    return bool(
+        re.match(
+            "^.+\\@(\\[?)[a-zA-Z0-9\\-\\.]+\\.([a-zA-Z]{2,3}|[0-9]{1,3})(\\]?)$",
+            email,
+        )
+    )
 
 
 class RenderHandler(webapp.RequestHandler):
@@ -112,5 +107,6 @@ def get_session():
     secure, httponly = False, True
     if DEV:
         secure = False
-    session = Session(cookie_name='andrewtrusty.appspot', secure=secure, httponly=httponly)
-    return session
+    return Session(
+        cookie_name='andrewtrusty.appspot', secure=secure, httponly=httponly
+    )
