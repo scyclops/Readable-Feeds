@@ -35,7 +35,7 @@ class Paginator(object):
 
     @classmethod
     def get(cls, count=10, q_filters={}, search=None, start=None, model=None, \
-            order='ASC', order_by='__key__'):
+                order='ASC', order_by='__key__'):
         """
         get queries the database on model, starting with key, ordered by
         order. It receives count + 1 items, returning count and setting a
@@ -62,18 +62,18 @@ class Paginator(object):
         """
 
         # argument validation
-        if model == None:
+        if model is None:
             raise ValueError('You must pass a model to query')
 
         # a valid model object will have a gql method.
-        if callable(model.gql) == False:
+        if not callable(model.gql):
             raise TypeError('model must be a valid model object.')
 
         # cache check
         cache_string = "gae_paginator_"
         for q_filter in q_filters:
             cache_string = cache_string + q_filter + "_" + q_filters[q_filter] + "_"
-        cache_string = cache_string + "index"
+        cache_string = f"{cache_string}index"
         c = Cache()
         if c.has_key(cache_string):
             return c[cache_string]
@@ -82,16 +82,16 @@ class Paginator(object):
         query = model.all()
         if len(q_filters) > 0:
             for q_filter in q_filters:
-                query.filter(q_filter + " = ", q_filters[q_filter])
+                query.filter(f"{q_filter} = ", q_filters[q_filter])
         if start:
             if order.lower() == "DESC".lower():
-                query.filter(order_by + " <", start)
+                query.filter(f"{order_by} <", start)
             else:
-                query.filter(order_by + " >", start)
+                query.filter(f"{order_by} >", start)
         if search:
             query.search(search)
         if order.lower() == "DESC".lower():
-            query.order("-" + order_by)
+            query.order(f"-{order_by}")
         else:
             query.order(order_by)
         results = query.fetch(count + 1)
@@ -101,13 +101,13 @@ class Paginator(object):
             if start is not None:
                 rquery = model.all()
                 for q_filter in q_filters:
-                    rquery.filter(q_filter + " = ", q_filters[q_filter])
+                    rquery.filter(f"{q_filter} = ", q_filters[q_filter])
                 if search:
                     query.search(search)
                 if order.lower() == "DESC".lower():
                     rquery.order(order_by)
                 else:
-                    rquery.order("-" + order_by)
+                    rquery.order(f"-{order_by}")
                 rresults = rquery.fetch(count)
                 previous = getattr(results[0], order_by)
             else:

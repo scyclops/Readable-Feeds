@@ -49,56 +49,56 @@ def grabContent(link, html):
     
     replaceBrs = re.compile("<br */? *>[ \r\n]*<br */? *>")
     html = re.sub(replaceBrs, "</p><p>", html)
-    
+
     try:
         soup = BeautifulSoup(html)
     except HTMLParser.HTMLParseError:
         return u""
-    
+
     # REMOVE SCRIPTS
     for s in soup.findAll("script"):
         s.extract()
-    
+
     allParagraphs = soup.findAll("p")
     topParent     = None
-    
+
     parents = []
     for paragraph in allParagraphs:
         
         parent = paragraph.parent
-        
+
         if (parent not in parents):
             parents.append(parent)
             parent.score = 0
-            
+
             if (parent.has_key("class")):
                 if (NEGATIVE.match(parent["class"])):
                     parent.score -= 50
                 if (POSITIVE.match(parent["class"])):
                     parent.score += 25
-                    
+
             if (parent.has_key("id")):
                 if (NEGATIVE.match(parent["id"])):
                     parent.score -= 50
                 if (POSITIVE.match(parent["id"])):
                     parent.score += 25
 
-        if (parent.score == None):
+        if parent.score is None:
             parent.score = 0
-        
+
         innerText = paragraph.renderContents() #"".join(paragraph.findAll(text=True))
         if (len(innerText) > 10):
             parent.score += 1
-            
+
         parent.score += innerText.count(",")
-        
+
     for parent in parents:
         if ((not topParent) or (parent.score > topParent.score)):
             topParent = parent
 
     if (not topParent):
         return u""
-            
+
     # REMOVE LINK'D STYLES
     styleLinks = soup.findAll("link", attrs={"type" : "text/css"})
     for s in styleLinks:
@@ -112,14 +112,14 @@ def grabContent(link, html):
     for ele in topParent.findAll(True):
         del(ele['style'])
         del(ele['class'])
-        
+
     killDivs(topParent)
     clean(topParent, "form")
     clean(topParent, "object")
     clean(topParent, "iframe")
-    
+
     fixLinks(topParent, link)
-    
+
     return topParent.renderContents().decode('utf-8')
     
 
@@ -152,60 +152,52 @@ def killDivs(parent):
         embed = len(d.findAll("embed"))
         pre   = len(d.findAll("pre"))
         code  = len(d.findAll("code"))
-    
-        if (d.renderContents().count(",") < 10):
-            if ((pre == 0) and (code == 0)):
-                if ((img > p ) or (li > p) or (a > p) or (p == 0) or (embed > 0)):
-                    d.extract()
+
+        if (
+            (d.renderContents().count(",") < 10)
+            and ((pre == 0) and (code == 0))
+            and ((img > p) or (li > p) or (a > p) or (p == 0) or (embed > 0))
+        ):
+            d.extract()
     
 
 # gives me the content i want
 def upgradeLink(link, user_agent, graball=False):
     
     link = link.encode('utf-8')
-    
-    # TODO: handle other exceptions
-    
-    # XXX: also, better way to check file types would be content-type headers
-    #        and don't mess with anything that isn't a webpage..
-    if (not (link.startswith("http://news.ycombinator.com") or link.endswith(".pdf"))):
-        linkFile = "upgraded/" + re.sub(PUNCTUATION, "_", link)
-        if linkFile in CACHE:
-            return CACHE[linkFile]
-        else:
-            content = u""
-            try:
-                html = urlgrabber.urlread(link, keepalive=0, user_agent=user_agent)
-                content = grabContent(link, html)
-                CACHE[linkFile] = content
-            except IOError:
-                pass
-            return content
-    else:
+
+    if link.startswith("http://news.ycombinator.com") or link.endswith(".pdf"):
         return u""
+    linkFile = "upgraded/" + re.sub(PUNCTUATION, "_", link)
+    if linkFile in CACHE:
+        return CACHE[linkFile]
+    content = u""
+    try:
+        html = urlgrabber.urlread(link, keepalive=0, user_agent=user_agent)
+        content = grabContent(link, html)
+        CACHE[linkFile] = content
+    except IOError:
+        pass
+    return content
 
 
 def get_headers(feedUrl):
-    if 'headers-'+feedUrl not in CACHE:
+    if f'headers-{feedUrl}' not in CACHE:
         return None, None, None
-    headers = loads(CACHE['headers-'+feedUrl])
-    
+    headers = loads(CACHE[f'headers-{feedUrl}'])
+
     # headers are lowercased by feedparser
     last_modified = headers.get('last-modified', '')
     etag = headers.get('etag', '')
     expires = headers.get('expires', '')
-    
-    fp_last_modified = None
-    if last_modified:
-        fp_last_modified = rfc822.parsedate(last_modified)
-    fp_expires = None
-    if expires:
-        fp_expires = rfc822.parsedate(expires)
+
+    fp_last_modified = rfc822.parsedate(last_modified) if last_modified else None
+    fp_expires = rfc822.parsedate(expires) if expires else None
     # fp if for 9 tuple feed parser required format
     return etag, fp_last_modified, fp_expires
 
 def save_headers(parsedFeed, feedUrl):
-    CACHE['headers-'+feedUrl] = dumps(parsedFeed.headers)
+    CACHE[f'headers-{feedUrl}'] = dumps(parsedFeed.headers)
 
 
 class NotFeedException(Exception):

@@ -37,10 +37,9 @@ class TemplateSyntaxError(TemplateError):
 
     def __unicode__(self):
         location = 'line %d' % self.lineno
-        name = self.filename or self.name
-        if name:
-            location = 'File "%s", %s' % (name, location)
-        lines = [self.message, '  ' + location]
+        if name := self.filename or self.name:
+            location = f'File "{name}", {location}'
+        lines = [self.message, f'  {location}']
 
         # if the source is set, add the line to the output
         if self.source is not None:
@@ -49,7 +48,7 @@ class TemplateSyntaxError(TemplateError):
             except IndexError:
                 line = None
             if line:
-                lines.append('    ' + line.strip())
+                lines.append(f'    {line.strip()}')
 
         return u'\n'.join(lines)
 

@@ -169,12 +169,12 @@ class WSGIPathInfoDispatcher(object):
         path = environ["PATH_INFO"] or "/"
         for p, app in self.apps:
             # The apps list should be sorted by length, descending.
-            if path.startswith(p + "/") or path == p:
+            if path.startswith(f"{p}/") or path == p:
                 environ = environ.copy()
                 environ["SCRIPT_NAME"] = environ["SCRIPT_NAME"] + p
                 environ["PATH_INFO"] = path[len(p):]
                 return app(environ, start_response)
-        
+
         start_response('404 Not Found', [('Content-Type', 'text/plain'),
                                          ('Content-Length', '0')])
         return ['']
@@ -224,13 +224,11 @@ class SizeCheckWrapper(object):
         # Shamelessly stolen from StringIO
         total = 0
         lines = []
-        line = self.readline()
-        while line:
+        while line := self.readline():
             lines.append(line)
             total += len(line)
             if 0 < sizehint <= total:
                 break
-            line = self.readline()
         return lines
     
     def close(self):
@@ -465,17 +463,17 @@ class HTTPRequest(object):
     def read_headers(self):
         """Read header lines from the incoming stream."""
         environ = self.environ
-        
+
         while True:
             line = self.rfile.readline()
             if not line:
                 # No more data--illegal end of headers
                 raise ValueError("Illegal end of headers.")
-            
+
             if line == '\r\n':
                 # Normal end of headers
                 break
-            
+
             if line[0] in ' \t':
                 # It's a continuation line.
                 v = line.strip()
@@ -483,13 +481,12 @@ class HTTPRequest(object):
                 k, v = line.split(":", 1)
                 k, v = k.strip().upper(), v.strip()
                 envname = "HTTP_" + k.replace("-", "_")
-            
+
             if k in comma_separated_headers:
-                existing = environ.get(envname)
-                if existing:
+                if existing := environ.get(envname):
                     v = ", ".join((existing, v))
             environ[envname] = v
-        
+
         ct = environ.pop("HTTP_CONTENT_TYPE", None)
         if ct is not None:
             environ["CONTENT_TYPE"] = ct
@@ -548,11 +545,10 @@ class HTTPRequest(object):
             return
     
     def _respond(self):
-        if self.chunked_read:
-            if not self.decode_chunked():
-                self.close_connection = True
-                return
-        
+        if self.chunked_read and not self.decode_chunked():
+            self.close_connection = True
+            return
+
         response = self.wsgi_app(self.environ, self.start_response)
         try:
             for chunk in response:
@@ -567,7 +563,7 @@ class HTTPRequest(object):
         finally:
             if hasattr(response, "close"):
                 response.close()
-        
+
         if (self.ready and not self.sent_headers):
             self.sent_headers = True
             self.send_headers()
@@ -641,17 +637,12 @@ class HTTPRequest(object):
         """Assert, process, and send the HTTP response message-headers."""
         hkeys = [key.lower() for key, value in self.outheaders]
         status = int(self.status[:3])
-        
+
         if status == 413:
             # Request Entity Too Large. Close conn to avoid garbage.
             self.close_connection = True
         elif "content-length" not in hkeys:
-            # "All 1xx (informational), 204 (no content),
-            # and 304 (not modified) responses MUST NOT
-            # include a message-body." So no point chunking.
-            if status < 200 or status in (204, 205, 304):
-                pass
-            else:
+            if status >= 200 and status not in (204, 205, 304):
                 if (self.response_protocol == 'HTTP/1.1'
                     and self.environ["REQUEST_METHOD"] != 'HEAD'):
                     # Use the chunked transfer-coding
@@ -660,17 +651,15 @@ class HTTPRequest(object):
                 else:
                     # Closing the conn is the only way to determine len.
                     self.close_connection = True
-        
+
         if "connection" not in hkeys:
             if self.response_protocol == 'HTTP/1.1':
                 # Both server and client are HTTP/1.1 or better
                 if self.close_connection:
                     self.outheaders.append(("Connection", "close"))
-            else:
-                # Server and/or client are HTTP/1.0
-                if not self.close_connection:
-                    self.outheaders.append(("Connection", "Keep-Alive"))
-        
+            elif not self.close_connection:
+                self.outheaders.append(("Connection", "Keep-Alive"))
+
         if (not self.close_connection) and (not self.chunked_read):
             # Read any remaining request body data on the socket.
             # "If an origin server receives a request that does not include an
@@ -687,16 +676,16 @@ class HTTPRequest(object):
             size = self.rfile.maxlen - self.rfile.bytes_read
             if size > 0:
                 self.rfile.read(size)
-        
+
         if "date" not in hkeys:
             self.outheaders.append(("Date", rfc822.formatdate()))
-        
+
         if "server" not in hkeys:
             self.outheaders.append(("Server", self.environ['SERVER_SOFTWARE']))
-        
+
         buf = [self.environ['ACTUAL_SERVER_PROTOCOL'], " ", self.status, "\r\n"]
         try:
-            buf += [k + ": " + v + "\r\n" for k, v in self.outheaders]
+            buf += [f"{k}: {v}" + "\r\n" for k, v in self.outheaders]
         except TypeError:
             if not isinstance(k, str):
                 raise TypeError("WSGI response header key %r is not a string.")
@@ -764,11 +753,10 @@ if not _fileobject_uses_str_type:
                 # Read until EOF
                 self._rbuf = StringIO.StringIO()  # reset _rbuf.  we consume it via buf.
                 while True:
-                    data = self.recv(rbufsize)
-                    if not data:
+                    if data := self.recv(rbufsize):
+                        buf.write(data)
+                    else:
                         break
-                    buf.write(data)
-                return buf.getvalue()
             else:
                 # Read until size bytes or EOF seen, whichever comes first
                 buf_len = buf.tell()
@@ -808,7 +796,8 @@ if not _fileobject_uses_str_type:
                     buf_len += n
                     del data  # explicit free
                     #assert buf_len == buf.tell()
-                return buf.getvalue()
+
+            return buf.getvalue()
 
         def readline(self, size=-1):
             buf = self._rbuf
@@ -852,7 +841,6 @@ if not _fileobject_uses_str_type:
                         del data
                         break
                     buf.write(data)
-                return buf.getvalue()
             else:
                 # Read until size bytes or \n or EOF seen, whichever comes first
                 buf.seek(0, 2)  # seek end
@@ -875,13 +863,12 @@ if not _fileobject_uses_str_type:
                         nl += 1
                         # save the excess data to _rbuf
                         self._rbuf.write(data[nl:])
-                        if buf_len:
-                            buf.write(data[:nl])
-                            break
-                        else:
+                        if not buf_len:
                             # Shortcut.  Avoid data copy through buf when returning
                             # a substring of our first recv().
                             return data[:nl]
+                        buf.write(data[:nl])
+                        break
                     n = len(data)
                     if n == size and not buf_len:
                         # Shortcut.  Avoid data copy through buf when
@@ -893,8 +880,9 @@ if not _fileobject_uses_str_type:
                         break
                     buf.write(data)
                     buf_len += n
-                    #assert buf_len == buf.tell()
-                return buf.getvalue()
+                            #assert buf_len == buf.tell()
+
+            return buf.getvalue()
 
 else:
     class CP_fileobject(socket._fileobject):
@@ -933,17 +921,12 @@ else:
                 # Read until EOF
                 buffers = [self._rbuf]
                 self._rbuf = ""
-                if self._rbufsize <= 1:
-                    recv_size = self.default_bufsize
-                else:
-                    recv_size = self._rbufsize
-
+                recv_size = self.default_bufsize if self._rbufsize <= 1 else self._rbufsize
                 while True:
-                    data = self.recv(recv_size)
-                    if not data:
+                    if data := self.recv(recv_size):
+                        buffers.append(data)
+                    else:
                         break
-                    buffers.append(data)
-                return "".join(buffers)
             else:
                 # Read until size bytes or EOF seen, whichever comes first
                 data = self._rbuf
@@ -968,7 +951,8 @@ else:
                         buffers[-1] = data[:left]
                         break
                     buf_len += n
-                return "".join(buffers)
+
+            return "".join(buffers)
 
         def readline(self, size=-1):
             data = self._rbuf
@@ -1004,7 +988,6 @@ else:
                         self._rbuf = data[nl:]
                         buffers[-1] = data[:nl]
                         break
-                return "".join(buffers)
             else:
                 # Read until size bytes or \n or EOF seen, whichever comes first
                 nl = data.find('\n', 0, size)
@@ -1038,7 +1021,8 @@ else:
                         buffers[-1] = data[:left]
                         break
                     buf_len += n
-                return "".join(buffers)
+
+            return "".join(buffers)
     
 
 class SSL_fileobject(CP_fileobject):
@@ -1282,10 +1266,10 @@ class ThreadPool(object):
     
     def start(self):
         """Start the pool of threads."""
-        for i in xrange(self.min):
+        for _ in xrange(self.min):
             self._threads.append(WorkerThread(self.server))
         for worker in self._threads:
-            worker.setName("CP WSGIServer " + worker.getName())
+            worker.setName(f"CP WSGIServer {worker.getName()}")
             worker.start()
         for worker in self._threads:
             while not worker.ready:
@@ -1303,11 +1287,11 @@ class ThreadPool(object):
     
     def grow(self, amount):
         """Spawn new worker threads (not above self.max)."""
-        for i in xrange(amount):
+        for _ in xrange(amount):
             if self.max > 0 and len(self._threads) >= self.max:
                 break
             worker = WorkerThread(self.server)
-            worker.setName("CP WSGIServer " + worker.getName())
+            worker.setName(f"CP WSGIServer {worker.getName()}")
             self._threads.append(worker)
             worker.start()
     
@@ -1319,9 +1303,9 @@ class ThreadPool(object):
             if not t.isAlive():
                 self._threads.remove(t)
                 amount -= 1
-        
+
         if amount > 0:
-            for i in xrange(min(amount, len(self._threads) - self.min)):
+            for _ in xrange(min(amount, len(self._threads) - self.min)):
                 # Put a number of shutdown requests on the queue equal
                 # to 'amount'. Once each of those is processed by a worker,
                 # that worker will terminate and be culled from our list
@@ -1744,30 +1728,26 @@ class CherryPyWSGIServer(object):
             "wsgi.url_scheme": "https",
             "HTTPS": "on",
             # pyOpenSSL doesn't provide access to any of these AFAICT
-##            'SSL_PROTOCOL': 'SSLv2',
-##            SSL_CIPHER 	string 	The cipher specification name
-##            SSL_VERSION_INTERFACE 	string 	The mod_ssl program version
-##            SSL_VERSION_LIBRARY 	string 	The OpenSSL program version
-            }
-        
-        # Server certificate attributes
-        ssl_environ.update({
+            # ##            'SSL_PROTOCOL': 'SSLv2',
+            # ##            SSL_CIPHER 	string 	The cipher specification name
+            # ##            SSL_VERSION_INTERFACE 	string 	The mod_ssl program version
+            # ##            SSL_VERSION_LIBRARY 	string 	The OpenSSL program version
+        } | {
             'SSL_SERVER_M_VERSION': cert.get_version(),
             'SSL_SERVER_M_SERIAL': cert.get_serial_number(),
-##            'SSL_SERVER_V_START': Validity of server's certificate (start time),
-##            'SSL_SERVER_V_END': Validity of server's certificate (end time),
-            })
-        
+            # ##            'SSL_SERVER_V_START': Validity of server's certificate (start time),
+            # ##            'SSL_SERVER_V_END': Validity of server's certificate (end time),
+        }
         for prefix, dn in [("I", cert.get_issuer()),
                            ("S", cert.get_subject())]:
             # X509Name objects don't seem to have a way to get the
             # complete DN string. Use str() and slice it instead,
             # because str(dn) == "<X509Name object '/C=US/ST=...'>"
             dnstr = str(dn)[18:-2]
-            
-            wsgikey = 'SSL_SERVER_%s_DN' % prefix
+
+            wsgikey = f'SSL_SERVER_{prefix}_DN'
             ssl_environ[wsgikey] = dnstr
-            
+
             # The DN should be of the form: /k1=v1/k2=v2, but we must allow
             # for any value to contain slashes itself (in a URL).
             while dnstr:
@@ -1776,7 +1756,7 @@ class CherryPyWSGIServer(object):
                 pos = dnstr.rfind("/")
                 dnstr, key = dnstr[:pos], dnstr[pos + 1:]
                 if key and value:
-                    wsgikey = 'SSL_SERVER_%s_DN_%s' % (prefix, key)
+                    wsgikey = f'SSL_SERVER_{prefix}_DN_{key}'
                     ssl_environ[wsgikey] = value
-        
+
         self.environ.update(ssl_environ)

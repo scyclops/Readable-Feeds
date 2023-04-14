@@ -66,7 +66,7 @@ class Parser(object):
         if token.type is not 'name':
             self.fail('tag name expected', token.lineno)
         if token.value in _statement_keywords:
-            return getattr(self, 'parse_' + self.stream.current.value)()
+            return getattr(self, f'parse_{self.stream.current.value}')()
         if token.value == 'call':
             return self.parse_call_block()
         if token.value == 'filter':
@@ -113,9 +113,7 @@ class Parser(object):
         self.stream.expect('name:in')
         iter = self.parse_tuple(with_condexpr=False,
                                 extra_end_rules=('name:recursive',))
-        test = None
-        if self.stream.skip_if('name:if'):
-            test = self.parse_expression()
+        test = self.parse_expression() if self.stream.skip_if('name:if') else None
         recursive = self.stream.skip_if('name:recursive')
         body = self.parse_statements(('name:endfor', 'name:else'))
         if self.stream.next().value == 'endfor':
@@ -150,7 +148,7 @@ class Parser(object):
         node = nodes.Block(lineno=self.stream.next().lineno)
         node.name = self.stream.expect('name').value
         node.body = self.parse_statements(('name:endblock',), drop_needle=True)
-        self.stream.skip_if('name:' + node.name)
+        self.stream.skip_if(f'name:{node.name}')
         return node
 
     def parse_extends(self):
@@ -299,19 +297,14 @@ class Parser(object):
         the optional `with_condexpr` parameter is set to `False` conditional
         expressions are not parsed.
         """
-        if with_condexpr:
-            return self.parse_condexpr()
-        return self.parse_or()
+        return self.parse_condexpr() if with_condexpr else self.parse_or()
 
     def parse_condexpr(self):
         lineno = self.stream.current.lineno
         expr1 = self.parse_or()
         while self.stream.skip_if('name:if'):
             expr2 = self.parse_or()
-            if self.stream.skip_if('name:else'):
-                expr3 = self.parse_condexpr()
-            else:
-                expr3 = None
+            expr3 = self.parse_condexpr() if self.stream.skip_if('name:else') else None
             expr1 = nodes.CondExpr(expr2, expr1, expr3, lineno=lineno)
             lineno = self.stream.current.lineno
         return expr1
@@ -346,15 +339,13 @@ class Parser(object):
             elif self.stream.skip_if('name:in'):
                 ops.append(nodes.Operand('in', self.parse_add()))
             elif self.stream.current.test('name:not') and \
-                 self.stream.look().test('name:in'):
+                     self.stream.look().test('name:in'):
                 self.stream.skip(2)
                 ops.append(nodes.Operand('notin', self.parse_add()))
             else:
                 break
             lineno = self.stream.current.lineno
-        if not ops:
-            return expr
-        return nodes.Compare(expr, ops, lineno=lineno)
+        return nodes.Compare(expr, ops, lineno=lineno) if ops else expr
 
     def parse_add(self):
         lineno = self.stream.current.lineno
@@ -382,9 +373,7 @@ class Parser(object):
         while self.stream.current.type is 'tilde':
             self.stream.next()
             args.append(self.parse_mul())
-        if len(args) == 1:
-            return args[0]
-        return nodes.Concat(args, lineno=lineno)
+        return args[0] if len(args) == 1 else nodes.Concat(args, lineno=lineno)
 
     def parse_mul(self):
         lineno = self.stream.current.lineno
@@ -484,7 +473,7 @@ class Parser(object):
         elif token.type is 'lbrace':
             node = self.parse_dict()
         else:
-            self.fail("unexpected token '%s'" % (token,), token.lineno)
+            self.fail(f"unexpected token '{token}'", token.lineno)
         if with_postfix:
             node = self.parse_postfix(node)
         return node

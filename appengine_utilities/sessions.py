@@ -311,9 +311,10 @@ class Session(object):
         """
         Create a new session id.
         """
-        sid = str(self.session.key()) + md5.new(repr(time.time()) + \
-                str(random.random())).hexdigest()
-        return sid
+        return (
+            str(self.session.key())
+            + md5.new(repr(time.time()) + str(random.random())).hexdigest()
+        )
 
     def _get_session(self):
         """
@@ -328,12 +329,11 @@ class Session(object):
         results = query.fetch(1)
         if len(results) is 0:
             return None
-        else:
-            sessionAge = datetime.datetime.now() - results[0].last_activity
-            if sessionAge.seconds > self.session_expire_time:
-                results[0].delete()
-                return None
-            return results[0]
+        sessionAge = datetime.datetime.now() - results[0].last_activity
+        if sessionAge.seconds > self.session_expire_time:
+            results[0].delete()
+            return None
+        return results[0]
 
     def _get(self, keyname=None):
         """
@@ -355,9 +355,7 @@ class Session(object):
 
         if len(results) is 0:
             return None
-        if keyname != None:
-            return results[0]
-        return results
+        return results[0] if keyname != None else results
 
     def _validate_key(self, keyname):
         """
@@ -365,13 +363,11 @@ class Session(object):
         """
         if keyname is None:
             raise ValueError('You must pass a keyname for the session' + \
-                ' data content.')
+                    ' data content.')
         elif keyname in ('sid', 'flash'):
-            raise ValueError(keyname + ' is a reserved keyname.')
+            raise ValueError(f'{keyname} is a reserved keyname.')
 
-        if type(keyname) != type([str, unicode]):
-            return str(keyname)
-        return keyname
+        return str(keyname) if type(keyname) != type([str, unicode]) else keyname
 
     def _put(self, keyname, value):
         """
@@ -381,11 +377,7 @@ class Session(object):
             keyname: The keyname of the mapping.
             value: The value of the mapping.
         """
-        if self.writer == "datastore":
-            writer = _DatastoreWriter()
-        else:
-            writer = _CookieWriter()
-
+        writer = _DatastoreWriter() if self.writer == "datastore" else _CookieWriter()
         writer.put(keyname, value, self)
 
     def _delete_session(self):
@@ -441,7 +433,7 @@ class Session(object):
                 all_sessions_deleted = True
             else:
                 for result in results:
-                    memcache.delete('sid-' + str(result.key()))
+                    memcache.delete(f'sid-{str(result.key())}')
                     result.delete()
 
         while not all_data_deleted:
@@ -471,7 +463,7 @@ class Session(object):
             data_results = data_query.fetch(1000)
             for data_result in data_results:
                 data_result.delete()
-            memcache.delete('sid-'+str(result.key()))
+            memcache.delete(f'sid-{str(result.key())}')
             result.delete()
 
     # Implement Python container methods
@@ -492,12 +484,10 @@ class Session(object):
         if keyname in self.cookie_vals:
             return self.cookie_vals[keyname]
         if hasattr(self, "session"):
-            mc = memcache.get('sid-'+str(self.session.key()))
-            if mc is not None:
-                if keyname in mc:
-                    return mc[keyname]
-            data = self._get(keyname)
-            if data:
+            mc = memcache.get(f'sid-{str(self.session.key())}')
+            if mc is not None and keyname in mc:
+                return mc[keyname]
+            if data := self._get(keyname):
                 #UNPICKLING CACHE self.cache[keyname] = data.content
                 self.cache[keyname] = pickle.loads(data.content)
                 self._set_memcache()
@@ -574,14 +564,11 @@ class Session(object):
         """
         # check memcache first
         if hasattr(self, "session"):
-            mc = memcache.get('sid-'+str(self.session.key()))
+            mc = memcache.get(f'sid-{str(self.session.key())}')
             if mc is not None:
                 return len(mc) + len(self.cookie_vals)
             results = self._get()
-            if results is not None:
-                return len(results) + len(self.cookie_vals)
-            else:
-                return 0
+            return len(results) + len(self.cookie_vals) if results is not None else 0
         return len(self.cookie_vals)
 
     def __contains__(self, keyname):
@@ -603,15 +590,13 @@ class Session(object):
         """
         # try memcache first
         if hasattr(self, "session"):
-            mc = memcache.get('sid-'+str(self.session.key()))
+            mc = memcache.get(f'sid-{str(self.session.key())}')
             if mc is not None:
-                for k in mc:
-                    yield k
+                yield from mc
             else:
                 for k in self._get():
                     yield k.keyname
-        for k in self.cookie_vals:
-            yield k
+        yield from self.cookie_vals
 
     def __str__(self):
         """
@@ -619,7 +604,7 @@ class Session(object):
         """
 
         #if self._get():
-        return '{' + ', '.join(['"%s" = "%s"' % (k, self[k]) for k in self]) + '}'
+        return '{' + ', '.join([f'"{k}" = "{self[k]}"' for k in self]) + '}'
         #else:
         #    return []
 
@@ -637,8 +622,7 @@ class Session(object):
                 for sd in sessiondata:
                     data[sd.keyname] = pickle.loads(sd.content)
 
-            memcache.set('sid-'+str(self.session.key()), data, \
-                self.session_expire_time)
+            memcache.set(f'sid-{str(self.session.key())}', data, self.session_expire_time)
 
     def cycle_key(self):
         """
@@ -694,19 +678,13 @@ class Session(object):
         """
         A copy of list of (key, value) pairs
         """
-        op = {}
-        for k in self:
-            op[k] = self[k]
-        return op
+        return {k: self[k] for k in self}
 
     def keys(self):
         """
         List of keys.
         """
-        l = []
-        for k in self:
-            l.append(k)
-        return l
+        return list(self)
 
     def update(*dicts):
         """
@@ -721,10 +699,7 @@ class Session(object):
         """
         A copy list of values.
         """
-        v = []
-        for k in self:
-            v.append(self[k])
-        return v
+        return [self[k] for k in self]
 
     def get(self, keyname, default = None):
         """
@@ -733,9 +708,7 @@ class Session(object):
         try:
             return self.__getitem__(keyname)
         except KeyError:
-            if default is not None:
-                return default
-            return None
+            return default if default is not None else None
 
     def setdefault(self, keyname, default = None):
         """

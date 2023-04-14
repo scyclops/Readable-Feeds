@@ -120,10 +120,7 @@ class Token(tuple):
 
     def test_any(self, *iterable):
         """Test against multiple token expressions."""
-        for expr in iterable:
-            if self.test(expr):
-                return True
-        return False
+        return any(self.test(expr) for expr in iterable)
 
     def __repr__(self):
         return 'Token(%r, %r, %r)' % (
@@ -191,7 +188,7 @@ class TokenStream(object):
 
     def skip(self, n=1):
         """Got n tokens ahead."""
-        for x in xrange(n):
+        for _ in xrange(n):
             self.next()
 
     def next_if(self, expr):
@@ -310,7 +307,7 @@ class Lexer(object):
             root_tag_rules.insert(0, ('linestatement', '^\s*' + prefix))
 
         # block suffix if trimming is enabled
-        block_suffix_re = environment.trim_blocks and '\\n?' or ''
+        block_suffix_re = '\\n?' if environment.trim_blocks else ''
 
         self.newline_sequence = environment.newline_sequence
 
@@ -431,12 +428,11 @@ class Lexer(object):
         generator.  Use this method if you just want to tokenize a template.
         """
         source = '\n'.join(unicode(source).splitlines())
-        pos = 0
         lineno = 1
         stack = ['root']
         if state is not None and state != 'root':
             assert state in ('variable', 'block'), 'invalid state'
-            stack.append(state + '_begin')
+            stack.append(f'{state}_begin')
         else:
             state = 'root'
         statetokens = self.rules[stack[-1]]
@@ -444,6 +440,7 @@ class Lexer(object):
 
         balancing_stack = []
 
+        pos = 0
         while 1:
             # tokenizer loop
             for regex, tokens, new_state in statetokens:
@@ -457,7 +454,7 @@ class Lexer(object):
                 # is the operator rule. do this only if the end tags look
                 # like operators
                 if balancing_stack and \
-                   tokens in ('variable_end', 'block_end',
+                       tokens in ('variable_end', 'block_end',
                               'linestatement_end'):
                     continue
 
@@ -488,7 +485,6 @@ class Lexer(object):
                                 yield lineno, token, data
                             lineno += data.count('\n')
 
-                # strings as token just are yielded as it.
                 else:
                     data = m.group()
                     # update brace/parentheses balance
@@ -501,16 +497,15 @@ class Lexer(object):
                             balancing_stack.append(']')
                         elif data in ('}', ')', ']'):
                             if not balancing_stack:
-                                raise TemplateSyntaxError('unexpected "%s"' %
-                                                          data, lineno, name,
-                                                          filename)
+                                raise TemplateSyntaxError(f'unexpected "{data}"', lineno, name, filename)
                             expected_op = balancing_stack.pop()
                             if expected_op != data:
-                                raise TemplateSyntaxError('unexpected "%s", '
-                                                          'expected "%s"' %
-                                                          (data, expected_op),
-                                                          lineno, name,
-                                                          filename)
+                                raise TemplateSyntaxError(
+                                    f'unexpected "{data}", expected "{expected_op}"',
+                                    lineno,
+                                    name,
+                                    filename,
+                                )
                     # yield items
                     yield lineno, tokens, data
                     lineno += data.count('\n')
@@ -549,8 +544,6 @@ class Lexer(object):
                 # publish new function and start again
                 pos = pos2
                 break
-            # if loop terminated without break we havn't found a single match
-            # either we are at the end of the file or we have a problem
             else:
                 # end of text
                 if pos >= source_length:

@@ -23,8 +23,8 @@ class render_cheetah:
 
     def __getattr__(self, name):
         from Cheetah.Template import Template
-        path = os.path.join(self.path, name + ".html")
-        
+        path = os.path.join(self.path, f"{name}.html")
+
         def template(**kw):
             t = Template(file=path, searchList=[kw])
             return t.respond()
@@ -54,7 +54,7 @@ class render_genshi:
 
     def __getattr__(self, name):
         # Assuming all templates are html
-        path = name + ".html"
+        path = f"{name}.html"
 
         if self._type == "text":
             from genshi.template import TextTemplate
@@ -67,10 +67,8 @@ class render_genshi:
         t = self._loader.load(path, cls=cls)
         def template(**kw):
             stream = t.generate(**kw)
-            if type:
-                return stream.render(type)
-            else:
-                return stream.render()
+            return stream.render(type) if type else stream.render()
+
         return template
 
 class render_jinja:
@@ -87,7 +85,7 @@ class render_jinja:
         
     def __getattr__(self, name):
         # Assuming all templates end with .html
-        path = name + '.html'
+        path = f'{name}.html'
         t = self._lookup.get_template(path)
         return t.render
         
@@ -105,7 +103,7 @@ class render_mako:
 
     def __getattr__(self, name):
         # Assuming all templates are html
-        path = name + ".html"
+        path = f"{name}.html"
         t = self._lookup.get_template(path)
         return t.render
 

@@ -70,10 +70,8 @@ class Browser:
 
     def show(self):
         """Opens the current page in real web browser."""
-        f = open('page.html', 'w')
-        f.write(self.data)
-        f.close()
-
+        with open('page.html', 'w') as f:
+            f.write(self.data)
         import webbrowser, os
         url = 'file://' + os.path.abspath('page.html')
         webbrowser.open(url)
@@ -94,7 +92,7 @@ class Browser:
 
     def _get_links(self):
         soup = self.get_soup()
-        return [a for a in soup.findAll(name='a')]
+        return list(soup.findAll(name='a'))
         
     def get_links(self, text=None, text_regex=None, url=None, url_regex=None, predicate=None):
         """Returns all links in the document."""
@@ -224,7 +222,7 @@ class AppHandler(urllib2.HTTPHandler):
     https_request = urllib2.HTTPHandler.do_request_
 
     def _make_response(self, result, url):
-        data = "\r\n".join(["%s: %s" % (k, v) for k, v in result.header_items])
+        data = "\r\n".join([f"{k}: {v}" for k, v in result.header_items])
         headers = httplib.HTTPMessage(StringIO(data))
         response = urllib.addinfourl(StringIO(result.data), headers, url)
         code, msg = result.status.split(None, 1)

@@ -87,7 +87,7 @@ class SQLParam:
         return str(self.value)
     
     def __repr__(self):
-        return '<param: %s>' % repr(self.value)
+        return f'<param: {repr(self.value)}>'
 
 sqlparam =  SQLParam
 
@@ -183,18 +183,18 @@ class SQLQuery:
         """
         return [i.value for i in self.items if isinstance(i, SQLParam)]
         
-    def join(items, sep=' '):
+    def join(self, sep=' '):
         """
         Joins multiple queries.
         
         >>> SQLQuery.join(['a', 'b'], ', ')
         <sql: 'a, b'>
         """
-        if len(items) == 0:
+        if len(self) == 0:
             return SQLQuery("")
 
-        q = SQLQuery(items[0])
-        for item in items[1:]:
+        q = SQLQuery(self[0])
+        for item in self[1:]:
             q += sep
             q += item
         return q
@@ -203,12 +203,12 @@ class SQLQuery:
 
     def __str__(self):
         try:
-            return self.query() % tuple([sqlify(x) for x in self.values()])
+            return self.query() % tuple(sqlify(x) for x in self.values())
         except (ValueError, TypeError):
             return self.query()
 
     def __repr__(self):
-        return '<sql: %s>' % repr(str(self))
+        return f'<sql: {repr(str(self))}>'
 
 class SQLLiteral: 
     """
@@ -271,7 +271,7 @@ def sqlify(obj):
     else:
         return repr(obj)
 
-def sqllist(lst): 
+def sqllist(lst):
     """
     Converts the arguments for use in something like a WHERE clause.
     
@@ -282,10 +282,7 @@ def sqllist(lst):
         >>> sqllist(u'abc')
         u'abc'
     """
-    if isinstance(lst, basestring): 
-        return lst
-    else:
-        return ', '.join(lst)
+    return lst if isinstance(lst, basestring) else ', '.join(lst)
 
 def sqlors(left, lst):
     """
@@ -312,14 +309,16 @@ def sqlors(left, lst):
             lst = lst[0]
 
     if isinstance(lst, iters):
-        return SQLQuery(['('] + 
-          sum([[left, sqlparam(x), ' OR '] for x in lst], []) +
-          ['1=2)']
+        return SQLQuery(
+            (
+                (['('] + sum(([left, sqlparam(x), ' OR '] for x in lst), []))
+                + ['1=2)']
+            )
         )
     else:
         return left + sqlparam(lst)
         
-def sqlwhere(dictionary, grouping=' AND '): 
+def sqlwhere(dictionary, grouping=' AND '):
     """
     Converts a `dictionary` to an SQL WHERE clause `SQLQuery`.
     
@@ -330,7 +329,9 @@ def sqlwhere(dictionary, grouping=' AND '):
         >>> sqlwhere({'a': 'a', 'b': 'b'}).query()
         'a = %s AND b = %s'
     """
-    return SQLQuery.join([k + ' = ' + sqlparam(v) for k, v in dictionary.items()], grouping)
+    return SQLQuery.join(
+        [f'{k} = {sqlparam(v)}' for k, v in dictionary.items()], grouping
+    )
 
 def sqlquote(a): 
     """
@@ -503,7 +504,7 @@ class DB:
             return '?'
         elif style == 'numeric':
             return ':1'
-        elif style in ['format', 'pyformat']:
+        elif style in {'format', 'pyformat'}:
             return '%s'
         raise UnknownParamstyle, style
 
@@ -544,14 +545,11 @@ class DB:
     
     def _where(self, where, vars): 
         if isinstance(where, (int, long)):
-            where = "id = " + sqlparam(where)
-        #@@@ for backward-compatibility
+            where = f"id = {sqlparam(where)}"
         elif isinstance(where, (list, tuple)) and len(where) == 2:
             where = SQLQuery(where[0], where[1])
-        elif isinstance(where, SQLQuery):
-            pass
-        else:
-            where = reparam(where, vars)        
+        elif not isinstance(where, SQLQuery):
+            where = reparam(where, vars)
         return where
     
     def query(self, sql_query, vars=None, processed=False, _test=False): 
@@ -597,7 +595,7 @@ class DB:
         return out
     
     def select(self, tables, vars=None, what='*', where=None, order=None, group=None, 
-               limit=None, offset=None, _test=False): 
+               limit=None, offset=None, _test=False):
         """
         Selects `what` from `tables` with clauses `where`, `order`, 
         `group`, `limit`, and `offset`. Uses vars to interpolate. 
@@ -613,8 +611,7 @@ class DB:
         sql_clauses = self.sql_clauses(what, tables, where, group, order, limit, offset)
         clauses = [self.gen_clause(sql, val, vars) for sql, val in sql_clauses if val is not None]
         qout = SQLQuery.join(clauses)
-        if _test: return qout
-        return self.query(qout, processed=True)
+        return qout if _test else self.query(qout, processed=True)
     
     def where(self, table, what='*', order=None, group=None, limit=None, 
               offset=None, _test=False, **kwargs):
@@ -627,9 +624,7 @@ class DB:
             >>> db.where('foo', source=2, crust='dewey', _test=True)
             <sql: "SELECT * FROM foo WHERE source = 2 AND crust = 'dewey'">
         """
-        where = []
-        for k, v in kwargs.iteritems():
-            where.append(k + ' = ' + sqlquote(v))
+        where = [f'{k} = {sqlquote(v)}' for k, v in kwargs.iteritems()]
         return self.select(table, what=what, order=order, 
                group=group, limit=limit, offset=offset, _test=_test, 
                where=SQLQuery.join(where, ' AND '))
@@ -646,11 +641,7 @@ class DB:
     
     def gen_clause(self, sql, val, vars): 
         if isinstance(val, (int, long)):
-            if sql == 'WHERE':
-                nout = 'id = ' + sqlquote(val)
-            else:
-                nout = SQLQuery(val)
-        #@@@
+            nout = f'id = {sqlquote(val)}' if sql == 'WHERE' else SQLQuery(val)
         elif isinstance(val, (list, tuple)) and len(val) == 2:
             nout = SQLQuery(val[0], val[1]) # backwards-compatibility
         elif isinstance(val, SQLQuery):
@@ -659,12 +650,11 @@ class DB:
             nout = reparam(val, vars)
 
         def xjoin(a, b):
-            if a and b: return a + ' ' + b
-            else: return a or b
+            return f'{a} {b}' if a and b else a or b
 
         return xjoin(sql, nout)
 
-    def insert(self, tablename, seqname=None, _test=False, **values): 
+    def insert(self, tablename, seqname=None, _test=False, **values):
         """
         Inserts `values` into `tablename`. Returns current sequence ID.
         Set `seqname` to the ID if it's not the default, or to `False`
@@ -679,17 +669,18 @@ class DB:
             >>> q.values()
             [2, 'bob']
         """
-        def q(x): return "(" + x + ")"
-        
+        def q(x):
+            return f"({x})"
+
         if values:
             _keys = SQLQuery.join(values.keys(), ', ')
             _values = SQLQuery.join([sqlparam(v) for v in values.values()], ', ')
-            sql_query = "INSERT INTO %s " % tablename + q(_keys) + ' VALUES ' + q(_values)
+            sql_query = f"INSERT INTO {tablename} {q(_keys)} VALUES {q(_values)}"
         else:
-            sql_query = SQLQuery("INSERT INTO %s DEFAULT VALUES" % tablename)
+            sql_query = SQLQuery(f"INSERT INTO {tablename} DEFAULT VALUES")
 
         if _test: return sql_query
-        
+
         db_cursor = self._db_cursor()
         if seqname is not False: 
             sql_query = self._process_insert_query(sql_query, tablename, seqname)
@@ -707,7 +698,7 @@ class DB:
             out = db_cursor.fetchone()[0]
         except Exception: 
             out = None
-        
+
         if not self.ctx.transactions: 
             self.ctx.commit()
         return out
@@ -728,14 +719,10 @@ class DB:
         """        
         if not values:
             return []
-            
+
         if not self.supports_multiple_insert:
             out = [self.insert(tablename, seqname=seqname, _test=_test, **v) for v in values]
-            if seqname is False:
-                return None
-            else:
-                return out
-                
+            return None if seqname is False else out
         keys = values[0].keys()
         #@@ make sure all keys are valid
 
@@ -744,12 +731,12 @@ class DB:
             if v.keys() != keys:
                 raise ValueError, 'Bad data'
 
-        sql_query = SQLQuery('INSERT INTO %s (%s) VALUES ' % (tablename, ', '.join(keys))) 
+        sql_query = SQLQuery(f"INSERT INTO {tablename} ({', '.join(keys)}) VALUES ") 
 
         data = []
         for row in values:
             d = SQLQuery.join([SQLParam(row[k]) for k in keys], ', ')
-            data.append('(' + d + ')')
+            data.append(f'({d})')
         sql_query += SQLQuery.join(data, ', ')
 
         if _test: return sql_query
@@ -778,7 +765,7 @@ class DB:
         return out
 
     
-    def update(self, tables, where, vars=None, _test=False, **values): 
+    def update(self, tables, where, vars=None, _test=False, **values):
         """
         Update `tables` with clause `where` (interpolated using `vars`)
         and setting `values`.
@@ -798,19 +785,18 @@ class DB:
         where = self._where(where, vars)
 
         query = (
-          "UPDATE " + sqllist(tables) + 
-          " SET " + sqlwhere(values, ', ') + 
-          " WHERE " + where)
+            (f"UPDATE {sqllist(tables)} SET " + sqlwhere(values, ', ')) + " WHERE "
+        ) + where
 
         if _test: return query
-        
+
         db_cursor = self._db_cursor()
         self._db_execute(db_cursor, query)
         if not self.ctx.transactions: 
             self.ctx.commit()
         return db_cursor.rowcount
     
-    def delete(self, table, where, using=None, vars=None, _test=False): 
+    def delete(self, table, where, using=None, vars=None, _test=False):
         """
         Deletes from `table` with clauses `where` and `using`.
 
@@ -822,9 +808,11 @@ class DB:
         if vars is None: vars = {}
         where = self._where(where, vars)
 
-        q = 'DELETE FROM ' + table
-        if where: q += ' WHERE ' + where
-        if using: q += ' USING ' + sqllist(using)
+        q = f'DELETE FROM {table}'
+        if where:
+            q += f' WHERE {where}'
+        if using:
+            q += f' USING {sqllist(using)}'
 
         if _test: return q
 
@@ -869,8 +857,8 @@ class PostgresDB(DB):
 
     def _process_insert_query(self, query, tablename, seqname):
         if seqname is None: 
-            seqname = tablename + "_id_seq"
-        return query + "; SELECT currval('%s')" % seqname
+            seqname = f"{tablename}_id_seq"
+        return f"{query}; SELECT currval('{seqname}')"
 
     def _connect(self, keywords):
         conn = DB._connect(self, keywords)
@@ -959,7 +947,6 @@ class FirebirdDB(DB):
             import kinterbasdb as db
         except Exception:
             db = None
-            pass
         if 'pw' in keywords:
             keywords['passwd'] = keywords['pw']
             del keywords['pw']
@@ -1014,7 +1001,7 @@ class OracleDB(DB):
             # It is not possible to get seq name from table name in Oracle
             return query
         else:
-            return query + "; SELECT %s.currval FROM dual" % seqname 
+            return f"{query}; SELECT {seqname}.currval FROM dual" 
 
 _databases = {}
 def database(dburl=None, **params):
@@ -1049,7 +1036,7 @@ register_database('firebird', FirebirdDB)
 register_database('mssql', MSSQLDB)
 register_database('oracle', OracleDB)
 
-def _interpolate(format): 
+def _interpolate(format):
     """
     Takes a format string and returns a list of 2-tuples of the form
     (boolean, string) where boolean says whether string should be evaled
@@ -1084,9 +1071,9 @@ def _interpolate(format):
                 tstart, tend = match.regs[3]
                 token = format[tstart:tend]
                 if token == "{": 
-                    level = level + 1
+                    level += 1
                 elif token == "}":  
-                    level = level - 1
+                    level -= 1
             chunks.append((1, format[dollar + 2:pos - 1]))
 
         elif nextchar in namechars:
@@ -1103,9 +1090,9 @@ def _interpolate(format):
                         tstart, tend = match.regs[3]
                         token = format[tstart:tend]
                         if token[0] in "([": 
-                            level = level + 1
+                            level += 1
                         elif token[0] in ")]":  
-                            level = level - 1
+                            level -= 1
                 else: 
                     break
             chunks.append((1, format[dollar + 1:pos]))

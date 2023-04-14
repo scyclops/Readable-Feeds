@@ -97,9 +97,12 @@ class Session(utils.ThreadedDict):
 
     def _validate_ip(self):
         # check for change of IP
-        if self.session_id and self.get('ip', None) != web.ctx.ip:
-            if not self._config.ignore_change_ip:
-               return self.expired() 
+        if (
+            self.session_id
+            and self.get('ip', None) != web.ctx.ip
+            and not self._config.ignore_change_ip
+        ):
+            return self.expired() 
     
     def _save(self):
         cookie_name = self._config.cookie_name
@@ -117,7 +120,7 @@ class Session(utils.ThreadedDict):
             rand = os.urandom(16)
             now = time.time()
             secret_key = self._config.secret_key
-            session_id = sha1("%s%s%s%s" %(rand, now, utils.safestr(web.ctx.ip), secret_key))
+            session_id = sha1(f"{rand}{now}{utils.safestr(web.ctx.ip)}{secret_key}")
             session_id = session_id.hexdigest()
             if session_id not in self.store:
                 break
@@ -195,7 +198,7 @@ class DiskStore(Store):
 
     def _get_path(self, key):
         if os.path.sep in key: 
-            raise ValueError, "Bad key: %s" % repr(key)
+            raise (ValueError, f"Bad key: {repr(key)}")
         return os.path.join(self.root, key)
     
     def __contains__(self, key):
@@ -204,11 +207,10 @@ class DiskStore(Store):
 
     def __getitem__(self, key):
         path = self._get_path(key)
-        if os.path.exists(path): 
-            pickled = open(path).read()
-            return self.decode(pickled)
-        else:
+        if not os.path.exists(path):
             raise KeyError, key
+        pickled = open(path).read()
+        return self.decode(pickled)
 
     def __setitem__(self, key, value):
         path = self._get_path(key)

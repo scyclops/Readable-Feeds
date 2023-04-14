@@ -42,10 +42,7 @@ class Optimizer(NodeTransformer):
             val = self.visit(node.test).as_const()
         except nodes.Impossible:
             return self.generic_visit(node)
-        if val:
-            body = node.body
-        else:
-            body = node.else_
+        body = node.body if val else node.else_
         result = []
         for node in body:
             result.extend(self.visit_list(node))

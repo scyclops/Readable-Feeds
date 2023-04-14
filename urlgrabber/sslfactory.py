@@ -45,13 +45,12 @@ if have_m2crypto:
             then the supplied ssl context is used. If no ssl context was supplied,
             None is returned.
             """
-            if ssl_ca_cert:
-                context = SSL.Context()
-                context.load_verify_locations(ssl_ca_cert)
-                context.set_verify(SSL.verify_peer, -1)
-                return context
-            else:
+            if not ssl_ca_cert:
                 return ssl_context
+            context = SSL.Context()
+            context.load_verify_locations(ssl_ca_cert)
+            context.set_verify(SSL.verify_peer, -1)
+            return context
 
         def create_https_connection(self, host, response_class = None):
             connection = httplib.HTTPSConnection(host, self.ssl_context)
@@ -80,10 +79,8 @@ def get_factory(ssl_ca_cert = None, ssl_context = None):
     """ Return an SSLFactory, based on if M2Crypto is available. """
     if have_m2crypto:
         return M2SSLFactory(ssl_ca_cert, ssl_context)
-    else:
         # Log here if someone provides the args but we don't use them.
-        if ssl_ca_cert or ssl_context:
-            if DEBUG:
-                DEBUG.warning("SSL arguments supplied, but M2Crypto is not available. "
-                        "Using Python SSL.")
-        return SSLFactory()
+    if (ssl_ca_cert or ssl_context) and DEBUG:
+        DEBUG.warning("SSL arguments supplied, but M2Crypto is not available. "
+                "Using Python SSL.")
+    return SSLFactory()

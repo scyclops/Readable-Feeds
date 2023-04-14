@@ -51,17 +51,12 @@ class CharDistributionAnalysis:
 
     def feed(self, aStr, aCharLen):
         """feed a character with known length"""
-        if aCharLen == 2:
-            # we only care about 2-bytes character in our distribution analysis
-            order = self.get_order(aStr)
-        else:
-            order = -1
+        order = self.get_order(aStr) if aCharLen == 2 else -1
         if order >= 0:
             self._mTotalChars += 1
             # order is valid
-            if order < self._mTableSize:
-                if 512 > self._mCharToFreqOrder[order]:
-                    self._mFreqChars += 1
+            if order < self._mTableSize and self._mCharToFreqOrder[order] < 512:
+                self._mFreqChars += 1
 
     def get_confidence(self):
         """return confidence based on existing data"""
@@ -147,17 +142,12 @@ class Big5DistributionAnalysis(CharDistributionAnalysis):
         self._mTypicalDistributionRatio = BIG5_TYPICAL_DISTRIBUTION_RATIO
 
     def get_order(self, aStr):
-        # for big5 encoding, we are interested 
-        #   first  byte range: 0xa4 -- 0xfe
-        #   second byte range: 0x40 -- 0x7e , 0xa1 -- 0xfe
-        # no validation needed here. State machine has done that
-        if aStr[0] >= '\xA4':
-            if aStr[1] >= '\xA1':
-                return 157 * (ord(aStr[0]) - 0xA4) + ord(aStr[1]) - 0xA1 + 63
-            else:
-                return 157 * (ord(aStr[0]) - 0xA4) + ord(aStr[1]) - 0x40
-        else:
+        if aStr[0] < '\xA4':
             return -1
+        if aStr[1] >= '\xA1':
+            return 157 * (ord(aStr[0]) - 0xA4) + ord(aStr[1]) - 0xA1 + 63
+        else:
+            return 157 * (ord(aStr[0]) - 0xA4) + ord(aStr[1]) - 0x40
 
 class SJISDistributionAnalysis(CharDistributionAnalysis):
     def __init__(self):

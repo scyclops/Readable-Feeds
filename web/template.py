@@ -56,8 +56,7 @@ def splitline(text):
         >>> splitline('')
         ('', '')
     """
-    index = text.find('\n') + 1
-    if index:
+    if index := text.find('\n') + 1:
         return text[:index], text[index:]
     else:
         return text, ''
@@ -76,12 +75,11 @@ class Parser:
         return DefwithNode(defwith, suite)
 
     def read_defwith(self, text):
-        if text.startswith('$def with'):
-            defwith, text = splitline(text)
-            defwith = defwith[1:].strip() # strip $ and spaces
-            return defwith, text
-        else:
+        if not text.startswith('$def with'):
             return '', text
+        defwith, text = splitline(text)
+        defwith = defwith[1:].strip() # strip $ and spaces
+        return defwith, text
     
     def read_section(self, text):
         r"""Reads one section from the given text.
@@ -126,11 +124,11 @@ class Parser:
         tokens = self.python_tokens(line)
         if len(tokens) < 4:
             raise SyntaxError('Invalid var statement')
-            
+
         name = tokens[1]
         sep = tokens[2]
         value = line.split(sep, 1)[1].strip()
-        
+
         if sep == '=':
             pass # no need to process value
         elif sep == ':': 
@@ -144,9 +142,9 @@ class Parser:
                     nodes.append(TextNode('\n'))         
             else: # single-line var statement
                 linenode, _ = self.readline(value)
-                nodes = linenode.nodes                
+                nodes = linenode.nodes
             parts = [node.emit('') for node in nodes]
-            value = "join_(%s)" % ", ".join(parts)
+            value = f'join_({", ".join(parts)})'
         else:
             raise SyntaxError('Invalid var statement')
         return VarNode(name, value), text
@@ -395,14 +393,11 @@ class Parser:
         """
         if indent == '':
             return '', text
-            
+
         block = ""
-        while True:
-            if text.startswith(indent):
-                line, text = splitline(text)
-                block += line[len(indent):]
-            else:
-                break
+        while text.startswith(indent):
+            line, text = splitline(text)
+            block += line[len(indent):]
         return block, text
 
     def read_statement(self, text):
@@ -452,7 +447,7 @@ class Parser:
         if keyword in STATEMENT_NODES:
             return STATEMENT_NODES[keyword](stmt, block, begin_indent)
         else:
-            raise ParseError, 'Unknown statement: %s' % repr(keyword)
+            raise (ParseError, f'Unknown statement: {repr(keyword)}')
         
 class PythonTokenizer:
     """Utility wrapper over python tokenizer."""
@@ -509,7 +504,7 @@ class DefwithNode:
         return self.defwith + self.suite.emit(indent + INDENT)
 
     def __repr__(self):
-        return "<defwith: %s, %s>" % (self.defwith, self.nodes)
+        return f"<defwith: {self.defwith}, {self.nodes}>"
 
 class TextNode:
     def __init__(self, value):
@@ -519,27 +514,24 @@ class TextNode:
         return repr(self.value)
         
     def __repr__(self):
-        return 't' + repr(self.value)
+        return f't{repr(self.value)}'
         
 class ExpressionNode:
     def __init__(self, value, escape=True):
         self.value = value.strip()
-        
+
         # convert ${...} to $(...)
         if value.startswith('{') and value.endswith('}'):
-            self.value = '(' + self.value[1:-1] + ')'
-            
+            self.value = f'({self.value[1:-1]})'
+
         self.escape = escape
 
     def emit(self, indent):
-        return 'escape_(%s, %s)' % (self.value, bool(self.escape))
+        return f'escape_({self.value}, {bool(self.escape)})'
         
     def __repr__(self):
-        if self.escape:
-            escape = ''
-        else:
-            escape = ':'
-        return "$%s%s" % (escape, self.value)
+        escape = '' if self.escape else ':'
+        return f"${escape}{self.value}"
         
 class AssignmentNode:
     def __init__(self, code):
@@ -549,7 +541,7 @@ class AssignmentNode:
         return indent + self.code + "\n"
         
     def __repr__(self):
-        return "<assignment: %s>" % repr(self.code)
+        return f"<assignment: {repr(self.code)}>"
         
 class LineNode:
     def __init__(self, nodes):
@@ -562,7 +554,7 @@ class LineNode:
         return indent + 'yield %s, join_(%s)\n' % (repr(name), ', '.join(text))
     
     def __repr__(self):
-        return "<line: %s>" % repr(self.nodes)
+        return f"<line: {repr(self.nodes)}>"
 
 INDENT = '    ' # 4 spaces
         
@@ -574,14 +566,13 @@ class BlockNode:
 
     def emit(self, indent, text_indent=''):
         text_indent = self.begin_indent + text_indent
-        out = indent + self.stmt + self.suite.emit(indent + INDENT, text_indent)
-        return out
+        return indent + self.stmt + self.suite.emit(indent + INDENT, text_indent)
         
     def text(self):
         return '${' + self.stmt + '}' + "".join([node.text(indent) for node in self.nodes])
         
     def __repr__(self):
-        return "<block: %s, %s>" % (repr(self.stmt), repr(self.nodelist))
+        return f"<block: {repr(self.stmt)}, {repr(self.nodelist)}>"
 
 class ForNode(BlockNode):
     def __init__(self, stmt, block, begin_indent=''):
@@ -590,11 +581,11 @@ class ForNode(BlockNode):
         tok.consume_till('in')
         a = stmt[:tok.index] # for i in
         b = stmt[tok.index:-1] # rest of for stmt excluding :
-        stmt = a + ' loop.setup(' + b.strip() + '):'
+        stmt = f'{a} loop.setup({b.strip()}):'
         BlockNode.__init__(self, stmt, block, begin_indent)
         
     def __repr__(self):
-        return "<block: %s, %s>" % (repr(self.original_stmt), repr(self.suite))
+        return f"<block: {repr(self.original_stmt)}, {repr(self.suite)}>"
 
 class CodeNode:
     def __init__(self, stmt, block, begin_indent=''):
@@ -606,7 +597,7 @@ class CodeNode:
         return rx.sub(indent, self.code).rstrip(' ')
         
     def __repr__(self):
-        return "<code: %s>" % repr(self.code)
+        return f"<code: {repr(self.code)}>"
         
 class IfNode(BlockNode):
     pass
@@ -629,7 +620,7 @@ class VarNode:
         return indent + 'yield %s, %s\n' % (repr(self.name), self.value)
         
     def __repr__(self):
-        return "<var: %s = %s>" % (self.name, self.value)
+        return f"<var: {self.name} = {self.value}>"
 
 class SuiteNode:
     """Suite is a list of sections."""
@@ -713,14 +704,10 @@ class ForLoopContext:
         self.parent = parent
         
     def setup(self, seq):
-        if hasattr(seq, '__len__'):
-            n = len(seq)
-        else:
-            n = 0
-            
+        n = len(seq) if hasattr(seq, '__len__') else 0
         self.index = 0
         seq = iter(seq)
-        
+
         # Pre python-2.5 does not support yield in try-except.
         # This is a work-around to overcome that limitation.
         def next(seq):
@@ -729,7 +716,7 @@ class ForLoopContext:
             except:
                 self._forloop._pop()
                 raise
-        
+
         while True:
             self._next(self.index + 1, n)
             yield next(seq)
@@ -753,10 +740,7 @@ class BaseTemplate:
         self.filter = filter
         self._globals = globals
         self._builtins = builtins
-        if code:
-            self.t = self._compile(code)
-        else:
-            self.t = lambda: ''
+        self.t = self._compile(code) if code else (lambda: '')
         
     def _compile(self, code):
         env = self.make_env(self._globals or {}, self._builtins)
@@ -849,10 +833,10 @@ class Template(BaseTemplate):
             
         return BaseTemplate.__call__(self, *a, **kw)
         
-    def generate_code(text, filename):
+    def generate_code(self, filename):
         # parse the text
-        rootnode = Parser(text, filename).parse()
-                
+        rootnode = Parser(self, filename).parse()
+
         # generate python code from the parse tree
         code = rootnode.emit(indent="").strip()
         return safestr(code)
@@ -916,12 +900,8 @@ class Render:
 
         if cache is None:
             cache = not config.get('debug', False)
-        
-        if cache:
-            self._cache = {}
-        else:
-            self._cache = None
-        
+
+        self._cache = {} if cache else None
         if base and not hasattr(base, '__call__'):
             # make base a function, so that it can be passed to sub-renders
             self._base = lambda page: self._template(base)(page)
@@ -933,33 +913,28 @@ class Render:
         if os.path.isdir(path):
             return 'dir', path
         else:
-            path = self._findfile(path)
-            if path:
-                return 'file', path
-            else:
-                return 'none', None
+            return ('file', path) if (path := self._findfile(path)) else ('none', None)
         
     def _load_template(self, name):
         kind, path = self._lookup(name)
-        
+
         if kind == 'dir':
             return Render(path, cache=self._cache is not None, base=self._base, **self._keywords)
         elif kind == 'file':
             return Template(open(path).read(), filename=path, **self._keywords)
         else:
-            raise AttributeError, "No template named " + name            
+            raise (AttributeError, f"No template named {name}")            
 
     def _findfile(self, path_prefix): 
-        p = [f for f in glob.glob(path_prefix + '.*') if not f.endswith('~')] # skip backup files
+        p = [f for f in glob.glob(f'{path_prefix}.*') if not f.endswith('~')]
         return p and p[0]
             
     def _template(self, name):
-        if self._cache is not None:
-            if name not in self._cache:
-                self._cache[name] = self._load_template(name)
-            return self._cache[name]
-        else:
+        if self._cache is None:
             return self._load_template(name)
+        if name not in self._cache:
+            self._cache[name] = self._load_template(name)
+        return self._cache[name]
         
     def __getattr__(self, name):
         t = self._template(name)
@@ -1011,44 +986,43 @@ def frender(path, **keywords):
 def compile_templates(root):
     """Compiles templates to python code."""
     re_start = re_compile('^', re.M)
-    
+
     for dirpath, dirnames, filenames in os.walk(root):
         filenames = [f for f in filenames if not f.startswith('.') and not f.endswith('~') and not f.startswith('__init__.py')]
-        
-        out = open(os.path.join(dirpath, '__init__.py'), 'w')
-        out.write('from web.template import CompiledTemplate, ForLoop\n\n')
-        if dirnames:
-            out.write("import " + ", ".join(dirnames))
 
-        for f in filenames:
-            path = os.path.join(dirpath, f)
+        with open(os.path.join(dirpath, '__init__.py'), 'w') as out:
+            out.write('from web.template import CompiledTemplate, ForLoop\n\n')
+            if dirnames:
+                out.write("import " + ", ".join(dirnames))
 
-            # create template to make sure it compiles
-            t = Template(open(path).read(), path)
-            
-            if '.' in f:
-                name, _ = f.split('.', 1)
-            else:
-                name = f
-            
-            code = Template.generate_code(open(path).read(), path)
-            code = re_start.sub('    ', code)
-                        
-            _gen = '' + \
-            '\ndef %s():' + \
-            '\n    loop = ForLoop()' + \
-            '\n    _dummy  = CompiledTemplate(lambda: None, "dummy")' + \
-            '\n    join_ = _dummy._join' + \
-            '\n    escape_ = _dummy._escape' + \
-            '\n' + \
-            '\n%s' + \
-            '\n    return __template__'
-            
-            gen_code = _gen % (name, code)
-            out.write(gen_code)
-            out.write('\n\n')
-            out.write('%s = CompiledTemplate(%s(), %s)\n\n' % (name, name, repr(path)))
-        out.close()
+            for f in filenames:
+                path = os.path.join(dirpath, f)
+
+                # create template to make sure it compiles
+                t = Template(open(path).read(), path)
+
+                if '.' in f:
+                    name, _ = f.split('.', 1)
+                else:
+                    name = f
+
+                code = Template.generate_code(open(path).read(), path)
+                code = re_start.sub('    ', code)
+
+                _gen = '' + \
+                '\ndef %s():' + \
+                '\n    loop = ForLoop()' + \
+                '\n    _dummy  = CompiledTemplate(lambda: None, "dummy")' + \
+                '\n    join_ = _dummy._join' + \
+                '\n    escape_ = _dummy._escape' + \
+                '\n' + \
+                '\n%s' + \
+                '\n    return __template__'
+
+                gen_code = _gen % (name, code)
+                out.write(gen_code)
+                out.write('\n\n')
+                out.write('%s = CompiledTemplate(%s(), %s)\n\n' % (name, name, repr(path)))
                 
 class ParseError(Exception):
     pass
@@ -1116,22 +1090,21 @@ class SafeVisitor(object):
         "Recursively validate node and all of its children."
         def classname(obj):
             return obj.__class__.__name__
+
         nodename = classname(node)
-        fn = getattr(self, 'visit' + nodename, None)
-        
+        fn = getattr(self, f'visit{nodename}', None)
+
         if fn:
             fn(node, *args)
         else:
             if nodename not in ALLOWED_AST_NODES:
                 self.fail(node, *args)
-            
+
         for child in node.getChildNodes():
             self.visit(child, *args)
 
     def visitName(self, node, *args):
         "Disallow any attempts to access a restricted attr."
-        #self.assert_attr(node.getChildren()[0], node)
-        pass
         
     def visitGetattr(self, node, *args):
         "Disallow any attempts to access a restricted attribute."
@@ -1179,7 +1152,7 @@ class TemplateResult(storage):
         return safestr(self.get('__body__', ''))
         
     def __repr__(self):
-        return "<TemplateResult: %s>" % dict.__repr__(self)
+        return f"<TemplateResult: {dict.__repr__(self)}>"
     
 def test():
     r"""Doctest for testing template module.

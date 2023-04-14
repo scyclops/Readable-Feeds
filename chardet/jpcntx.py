@@ -174,17 +174,19 @@ class SJISContextAnalysis(JapaneseContextAnalysis):
         if not aStr: return -1, 1
         # find out current char's byte length
         if ((aStr[0] >= '\x81') and (aStr[0] <= '\x9F')) or \
-           ((aStr[0] >= '\xE0') and (aStr[0] <= '\xFC')):
+               ((aStr[0] >= '\xE0') and (aStr[0] <= '\xFC')):
             charLen = 2
         else:
             charLen = 1
 
         # return its order if it is hiragana
-        if len(aStr) > 1:
-            if (aStr[0] == '\202') and \
-               (aStr[1] >= '\x9F') and \
-               (aStr[1] <= '\xF1'):
-                return ord(aStr[1]) - 0x9F, charLen
+        if (
+            len(aStr) > 1
+            and (aStr[0] == '\202')
+            and (aStr[1] >= '\x9F')
+            and (aStr[1] <= '\xF1')
+        ):
+            return ord(aStr[1]) - 0x9F, charLen
 
         return -1, charLen
 
@@ -193,7 +195,7 @@ class EUCJPContextAnalysis(JapaneseContextAnalysis):
         if not aStr: return -1, 1
         # find out current char's byte length
         if (aStr[0] == '\x8E') or \
-           ((aStr[0] >= '\xA1') and (aStr[0] <= '\xFE')):
+               ((aStr[0] >= '\xA1') and (aStr[0] <= '\xFE')):
             charLen = 2
         elif aStr[0] == '\x8F':
             charLen = 3
@@ -201,10 +203,12 @@ class EUCJPContextAnalysis(JapaneseContextAnalysis):
             charLen = 1
 
         # return its order if it is hiragana
-        if len(aStr) > 1:
-            if (aStr[0] == '\xA4') and \
-               (aStr[1] >= '\xA1') and \
-               (aStr[1] <= '\xF3'):
-                return ord(aStr[1]) - 0xA1, charLen
+        if (
+            len(aStr) > 1
+            and (aStr[0] == '\xA4')
+            and (aStr[1] >= '\xA1')
+            and (aStr[1] <= '\xF3')
+        ):
+            return ord(aStr[1]) - 0xA1, charLen
 
         return -1, charLen

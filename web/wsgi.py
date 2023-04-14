@@ -33,33 +33,26 @@ def runwsgi(func):
     if (os.environ.has_key('PHP_FCGI_CHILDREN') #lighttpd fastcgi
       or os.environ.has_key('SERVER_SOFTWARE')):
         return runfcgi(func, None)
-    
+
     if 'fcgi' in sys.argv or 'fastcgi' in sys.argv:
         args = sys.argv[1:]
         if 'fastcgi' in args: args.remove('fastcgi')
         elif 'fcgi' in args: args.remove('fcgi')
-        if args:
-            return runfcgi(func, validaddr(args[0]))
-        else:
-            return runfcgi(func, None)
-    
+        return runfcgi(func, validaddr(args[0])) if args else runfcgi(func, None)
     if 'scgi' in sys.argv:
         args = sys.argv[1:]
         args.remove('scgi')
-        if args:
-            return runscgi(func, validaddr(args[0]))
-        else:
-            return runscgi(func)
-    
+        return runscgi(func, validaddr(args[0])) if args else runscgi(func)
     return httpserver.runsimple(func, validip(listget(sys.argv, 1, '')))
     
 def _is_dev_mode():
     # quick hack to check if the program is running in dev mode.
-    if os.environ.has_key('SERVER_SOFTWARE') \
-        or os.environ.has_key('PHP_FCGI_CHILDREN') \
-        or 'fcgi' in sys.argv or 'fastcgi' in sys.argv:
-            return False
-    return True
+    return (
+        not os.environ.has_key('SERVER_SOFTWARE')
+        and not os.environ.has_key('PHP_FCGI_CHILDREN')
+        and 'fcgi' not in sys.argv
+        and 'fastcgi' not in sys.argv
+    )
 
 # When running the builtin-server, enable debug mode if not already set.
 web.config.setdefault('debug', _is_dev_mode())

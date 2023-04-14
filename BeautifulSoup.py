@@ -173,64 +173,61 @@ class PageElement:
         return lastChild
 
     def insert(self, position, newChild):
-        if (isinstance(newChild, basestring)
-            or isinstance(newChild, unicode)) \
-            and not isinstance(newChild, NavigableString):
-            newChild = NavigableString(newChild)
+      if (isinstance(
+          newChild,
+          (basestring, unicode))) and not isinstance(newChild, NavigableString):
+        newChild = NavigableString(newChild)
 
-        position =  min(position, len(self.contents))
-        if hasattr(newChild, 'parent') and newChild.parent != None:
-            # We're 'inserting' an element that's already one
-            # of this object's children.
-            if newChild.parent == self:
-                index = self.find(newChild)
-                if index and index < position:
-                    # Furthermore we're moving it further down the
-                    # list of this object's children. That means that
-                    # when we extract this element, our target index
-                    # will jump down one.
-                    position = position - 1
-            newChild.extract()
+      position =  min(position, len(self.contents))
+      if hasattr(newChild, 'parent') and newChild.parent != None:
+          # We're 'inserting' an element that's already one
+          # of this object's children.
+          if newChild.parent == self:
+              index = self.find(newChild)
+              if index and index < position:
+                  # Furthermore we're moving it further down the
+                  # list of this object's children. That means that
+                  # when we extract this element, our target index
+                  # will jump down one.
+                  position = position - 1
+          newChild.extract()
 
-        newChild.parent = self
-        previousChild = None
-        if position == 0:
-            newChild.previousSibling = None
-            newChild.previous = self
-        else:
-            previousChild = self.contents[position-1]
-            newChild.previousSibling = previousChild
-            newChild.previousSibling.nextSibling = newChild
-            newChild.previous = previousChild._lastRecursiveChild()
-        if newChild.previous:
-            newChild.previous.next = newChild
+      newChild.parent = self
+      previousChild = None
+      if position == 0:
+          newChild.previousSibling = None
+          newChild.previous = self
+      else:
+          previousChild = self.contents[position-1]
+          newChild.previousSibling = previousChild
+          newChild.previousSibling.nextSibling = newChild
+          newChild.previous = previousChild._lastRecursiveChild()
+      if newChild.previous:
+          newChild.previous.next = newChild
 
-        newChildsLastElement = newChild._lastRecursiveChild()
+      newChildsLastElement = newChild._lastRecursiveChild()
 
-        if position >= len(self.contents):
-            newChild.nextSibling = None
+      if position >= len(self.contents):
+        newChild.nextSibling = None
 
-            parent = self
-            parentsNextSibling = None
-            while not parentsNextSibling:
-                parentsNextSibling = parent.nextSibling
-                parent = parent.parent
-                if not parent: # This is the last element in the document.
-                    break
-            if parentsNextSibling:
-                newChildsLastElement.next = parentsNextSibling
-            else:
-                newChildsLastElement.next = None
-        else:
-            nextChild = self.contents[position]
-            newChild.nextSibling = nextChild
-            if newChild.nextSibling:
-                newChild.nextSibling.previousSibling = newChild
-            newChildsLastElement.next = nextChild
+        parent = self
+        parentsNextSibling = None
+        while not parentsNextSibling:
+            parentsNextSibling = parent.nextSibling
+            parent = parent.parent
+            if not parent: # This is the last element in the document.
+                break
+        newChildsLastElement.next = parentsNextSibling if parentsNextSibling else None
+      else:
+        nextChild = self.contents[position]
+        newChild.nextSibling = nextChild
+        if newChild.nextSibling:
+            newChild.nextSibling.previousSibling = newChild
+        newChildsLastElement.next = nextChild
 
-        if newChildsLastElement.next:
-            newChildsLastElement.next.previous = newChildsLastElement
-        self.contents.insert(position, newChild)
+      if newChildsLastElement.next:
+          newChildsLastElement.next.previous = newChildsLastElement
+      self.contents.insert(position, newChild)
 
     def append(self, tag):
         """Appends the given tag to the contents of this tag."""
@@ -290,15 +287,9 @@ class PageElement:
     fetchPreviousSiblings = findPreviousSiblings # Compatibility with pre-3.x
 
     def findParent(self, name=None, attrs={}, **kwargs):
-        """Returns the closest parent of this Tag that matches the given
+      """Returns the closest parent of this Tag that matches the given
         criteria."""
-        # NOTE: We can't use _findOne because findParents takes a different
-        # set of arguments.
-        r = None
-        l = self.findParents(name, attrs, 1)
-        if l:
-            r = l[0]
-        return r
+      return l[0] if (l := self.findParents(name, attrs, 1)) else None
 
     def findParents(self, name=None, attrs={}, limit=None, **kwargs):
         """Returns the parents of this Tag that match the given
@@ -311,34 +302,29 @@ class PageElement:
     #These methods do the real heavy lifting.
 
     def _findOne(self, method, name, attrs, text, **kwargs):
-        r = None
-        l = method(name, attrs, text, 1, **kwargs)
-        if l:
-            r = l[0]
-        return r
+      return l[0] if (l := method(name, attrs, text, 1, **kwargs)) else None
 
     def _findAll(self, name, attrs, text, limit, generator, **kwargs):
-        "Iterates over a generator looking for things that match."
+      "Iterates over a generator looking for things that match."
 
-        if isinstance(name, SoupStrainer):
-            strainer = name
-        else:
-            # Build a SoupStrainer
-            strainer = SoupStrainer(name, attrs, text, **kwargs)
-        results = ResultSet(strainer)
-        g = generator()
-        while True:
-            try:
-                i = g.next()
-            except StopIteration:
+      if isinstance(name, SoupStrainer):
+          strainer = name
+      else:
+          # Build a SoupStrainer
+          strainer = SoupStrainer(name, attrs, text, **kwargs)
+      results = ResultSet(strainer)
+      g = generator()
+      while True:
+        try:
+            i = g.next()
+        except StopIteration:
+            break
+        if i:
+          if found := strainer.search(i):
+            results.append(found)
+            if limit and len(results) >= limit:
                 break
-            if i:
-                found = strainer.search(i)
-                if found:
-                    results.append(found)
-                    if limit and len(results) >= limit:
-                        break
-        return results
+      return results
 
     #These Generators can be used to navigate starting from both
     #NavigableStrings and Tags.
@@ -378,22 +364,18 @@ class PageElement:
         return str.replace("%SOUP-ENCODING%", encoding)
 
     def toEncoding(self, s, encoding=None):
-        """Encodes an object to a string in some encoding, or to Unicode.
+      """Encodes an object to a string in some encoding, or to Unicode.
         ."""
-        if isinstance(s, unicode):
-            if encoding:
-                s = s.encode(encoding)
-        elif isinstance(s, str):
-            if encoding:
-                s = s.encode(encoding)
-            else:
-                s = unicode(s)
-        else:
-            if encoding:
-                s  = self.toEncoding(str(s), encoding)
-            else:
-                s = unicode(s)
-        return s
+      if (isinstance(s, unicode) and encoding
+          or not isinstance(s, unicode) and isinstance(s, str) and encoding):
+        s = s.encode(encoding)
+      elif isinstance(s, unicode):
+        pass
+      elif isinstance(s, str) or not encoding:
+        s = unicode(s)
+      else:
+        s  = self.toEncoding(str(s), encoding)
+      return s
 
 class NavigableString(unicode, PageElement):
 
@@ -413,53 +395,50 @@ class NavigableString(unicode, PageElement):
         return (NavigableString.__str__(self),)
 
     def __getattr__(self, attr):
-        """text.string gives you text. This is for backwards
+      """text.string gives you text. This is for backwards
         compatibility for Navigable*String, but for CData* it lets you
         get the string without the CData wrapper."""
-        if attr == 'string':
-            return self
-        else:
-            raise AttributeError, "'%s' object has no attribute '%s'" % (self.__class__.__name__, attr)
+      if attr == 'string':
+        return self
+      else:
+        raise (
+            AttributeError,
+            f"'{self.__class__.__name__}' object has no attribute '{attr}'",
+        )
 
     def __unicode__(self):
         return str(self).decode(DEFAULT_OUTPUT_ENCODING)
 
     def __str__(self, encoding=DEFAULT_OUTPUT_ENCODING):
-        if encoding:
-            return self.encode(encoding)
-        else:
-            return self
+      return self.encode(encoding) if encoding else self
 
 class CData(NavigableString):
 
     def __str__(self, encoding=DEFAULT_OUTPUT_ENCODING):
-        return "<![CDATA[%s]]>" % NavigableString.__str__(self, encoding)
+      return f"<![CDATA[{NavigableString.__str__(self, encoding)}]]>"
 
 class ProcessingInstruction(NavigableString):
     def __str__(self, encoding=DEFAULT_OUTPUT_ENCODING):
-        output = self
-        if "%SOUP-ENCODING%" in output:
-            output = self.substituteEncoding(output, encoding)
-        return "<?%s?>" % self.toEncoding(output, encoding)
+      output = self
+      if "%SOUP-ENCODING%" in output:
+          output = self.substituteEncoding(output, encoding)
+      return f"<?{self.toEncoding(output, encoding)}?>"
 
 class Comment(NavigableString):
     def __str__(self, encoding=DEFAULT_OUTPUT_ENCODING):
-        return "<!--%s-->" % NavigableString.__str__(self, encoding)
+      return f"<!--{NavigableString.__str__(self, encoding)}-->"
 
 class Declaration(NavigableString):
     def __str__(self, encoding=DEFAULT_OUTPUT_ENCODING):
-        return "<!%s>" % NavigableString.__str__(self, encoding)
+      return f"<!{NavigableString.__str__(self, encoding)}>"
 
 class Tag(PageElement):
 
     """Represents a found HTML tag with its attributes and contents."""
 
-    def _invert(h):
-        "Cheap function to invert a hash."
-        i = {}
-        for k,v in h.items():
-            i[v] = k
-        return i
+    def _invert(self):
+      "Cheap function to invert a hash."
+      return {v: k for k, v in self.items()}
 
     XML_ENTITIES_TO_SPECIAL_CHARS = { "apos" : "'",
                                       "quot" : '"',
@@ -470,29 +449,29 @@ class Tag(PageElement):
     XML_SPECIAL_CHARS_TO_ENTITIES = _invert(XML_ENTITIES_TO_SPECIAL_CHARS)
 
     def _convertEntities(self, match):
-        """Used in a call to re.sub to replace HTML, XML, and numeric
+      """Used in a call to re.sub to replace HTML, XML, and numeric
         entities with the appropriate Unicode characters. If HTML
         entities are being converted, any unrecognized entities are
         escaped."""
-        x = match.group(1)
-        if self.convertHTMLEntities and x in name2codepoint:
-            return unichr(name2codepoint[x])
-        elif x in self.XML_ENTITIES_TO_SPECIAL_CHARS:
-            if self.convertXMLEntities:
-                return self.XML_ENTITIES_TO_SPECIAL_CHARS[x]
-            else:
-                return u'&%s;' % x
-        elif len(x) > 0 and x[0] == '#':
-            # Handle numeric entities
-            if len(x) > 1 and x[1] == 'x':
-                return unichr(int(x[2:], 16))
-            else:
-                return unichr(int(x[1:]))
-
-        elif self.escapeUnrecognizedEntities:
-            return u'&amp;%s;' % x
+      x = match.group(1)
+      if self.convertHTMLEntities and x in name2codepoint:
+        return unichr(name2codepoint[x])
+      elif x in self.XML_ENTITIES_TO_SPECIAL_CHARS:
+        if self.convertXMLEntities:
+          return self.XML_ENTITIES_TO_SPECIAL_CHARS[x]
         else:
-            return u'&%s;' % x
+          return f'&{x};'
+      elif len(x) > 0 and x[0] == '#':
+          # Handle numeric entities
+          if len(x) > 1 and x[1] == 'x':
+              return unichr(int(x[2:], 16))
+          else:
+              return unichr(int(x[1:]))
+
+      elif self.escapeUnrecognizedEntities:
+        return f'&amp;{x};'
+      else:
+        return f'&{x};'
 
     def __init__(self, parser, name, attrs=None, parent=None,
                  previous=None):
@@ -551,18 +530,18 @@ class Tag(PageElement):
         return True
 
     def __setitem__(self, key, value):
-        """Setting tag[key] sets the value of the 'key' attribute for the
+      """Setting tag[key] sets the value of the 'key' attribute for the
         tag."""
-        self._getAttrMap()
-        self.attrMap[key] = value
-        found = False
-        for i in range(0, len(self.attrs)):
-            if self.attrs[i][0] == key:
-                self.attrs[i] = (key, value)
-                found = True
-        if not found:
-            self.attrs.append((key, value))
-        self._getAttrMap()[key] = value
+      self._getAttrMap()
+      self.attrMap[key] = value
+      found = False
+      for i in range(len(self.attrs)):
+        if self.attrs[i][0] == key:
+            self.attrs[i] = (key, value)
+            found = True
+      if not found:
+          self.attrs.append((key, value))
+      self._getAttrMap()[key] = value
 
     def __delitem__(self, key):
         "Deleting tag[key] deletes all 'key' attributes for the tag."
@@ -582,25 +561,23 @@ class Tag(PageElement):
         return apply(self.findAll, args, kwargs)
 
     def __getattr__(self, tag):
-        #print "Getattr %s.%s" % (self.__class__, tag)
-        if len(tag) > 3 and tag.rfind('Tag') == len(tag)-3:
-            return self.find(tag[:-3])
-        elif tag.find('__') != 0:
-            return self.find(tag)
-        raise AttributeError, "'%s' object has no attribute '%s'" % (self.__class__, tag)
+      #print "Getattr %s.%s" % (self.__class__, tag)
+      if len(tag) > 3 and tag.rfind('Tag') == len(tag)-3:
+          return self.find(tag[:-3])
+      elif tag.find('__') != 0:
+          return self.find(tag)
+      raise (AttributeError, f"'{self.__class__}' object has no attribute '{tag}'")
 
     def __eq__(self, other):
-        """Returns true iff this tag has the same name, the same attributes,
+      """Returns true iff this tag has the same name, the same attributes,
         and the same contents (recursively) as the given tag.
 
         NOTE: right now this will return false if two tags have the
         same attributes in a different order. Should this be fixed?"""
-        if not hasattr(other, 'name') or not hasattr(other, 'attrs') or not hasattr(other, 'contents') or self.name != other.name or self.attrs != other.attrs or len(self) != len(other):
-            return False
-        for i in range(0, len(self.contents)):
-            if self.contents[i] != other.contents[i]:
-                return False
-        return True
+      if not hasattr(other, 'name') or not hasattr(other, 'attrs') or not hasattr(other, 'contents') or self.name != other.name or self.attrs != other.attrs or len(self) != len(other):
+          return False
+      return all(self.contents[i] == other.contents[i]
+                 for i in range(len(self.contents)))
 
     def __ne__(self, other):
         """Returns true iff this tag is not identical to the other tag,
@@ -619,104 +596,101 @@ class Tag(PageElement):
                                            + ")")
 
     def _sub_entity(self, x):
-        """Used with a regular expression to substitute the
+      """Used with a regular expression to substitute the
         appropriate XML entity for an XML special character."""
-        return "&" + self.XML_SPECIAL_CHARS_TO_ENTITIES[x.group(0)[0]] + ";"
+      return f"&{self.XML_SPECIAL_CHARS_TO_ENTITIES[x.group(0)[0]]};"
 
     def __str__(self, encoding=DEFAULT_OUTPUT_ENCODING,
                 prettyPrint=False, indentLevel=0):
-        """Returns a string or Unicode representation of this tag and
+      """Returns a string or Unicode representation of this tag and
         its contents. To get Unicode, pass None for encoding.
 
         NOTE: since Python's HTML parser consumes whitespace, this
         method is not certain to reproduce the whitespace present in
         the original string."""
 
-        encodedName = self.toEncoding(self.name, encoding)
+      encodedName = self.toEncoding(self.name, encoding)
 
-        attrs = []
-        if self.attrs:
-            for key, val in self.attrs:
-                fmt = '%s="%s"'
-                if isString(val):
-                    if self.containsSubstitutions and '%SOUP-ENCODING%' in val:
-                        val = self.substituteEncoding(val, encoding)
+      attrs = []
+      if self.attrs:
+          for key, val in self.attrs:
+              fmt = '%s="%s"'
+              if isString(val):
+                  if self.containsSubstitutions and '%SOUP-ENCODING%' in val:
+                      val = self.substituteEncoding(val, encoding)
 
-                    # The attribute value either:
-                    #
-                    # * Contains no embedded double quotes or single quotes.
-                    #   No problem: we enclose it in double quotes.
-                    # * Contains embedded single quotes. No problem:
-                    #   double quotes work here too.
-                    # * Contains embedded double quotes. No problem:
-                    #   we enclose it in single quotes.
-                    # * Embeds both single _and_ double quotes. This
-                    #   can't happen naturally, but it can happen if
-                    #   you modify an attribute value after parsing
-                    #   the document. Now we have a bit of a
-                    #   problem. We solve it by enclosing the
-                    #   attribute in single quotes, and escaping any
-                    #   embedded single quotes to XML entities.
-                    if '"' in val:
-                        fmt = "%s='%s'"
-                        if "'" in val:
-                            # TODO: replace with apos when
-                            # appropriate.
-                            val = val.replace("'", "&squot;")
+                  # The attribute value either:
+                  #
+                  # * Contains no embedded double quotes or single quotes.
+                  #   No problem: we enclose it in double quotes.
+                  # * Contains embedded single quotes. No problem:
+                  #   double quotes work here too.
+                  # * Contains embedded double quotes. No problem:
+                  #   we enclose it in single quotes.
+                  # * Embeds both single _and_ double quotes. This
+                  #   can't happen naturally, but it can happen if
+                  #   you modify an attribute value after parsing
+                  #   the document. Now we have a bit of a
+                  #   problem. We solve it by enclosing the
+                  #   attribute in single quotes, and escaping any
+                  #   embedded single quotes to XML entities.
+                  if '"' in val:
+                      fmt = "%s='%s'"
+                      if "'" in val:
+                          # TODO: replace with apos when
+                          # appropriate.
+                          val = val.replace("'", "&squot;")
 
-                    # Now we're okay w/r/t quotes. But the attribute
-                    # value might also contain angle brackets, or
-                    # ampersands that aren't part of entities. We need
-                    # to escape those to XML entities too.
-                    val = self.BARE_AMPERSAND_OR_BRACKET.sub(self._sub_entity, val)
+                  # Now we're okay w/r/t quotes. But the attribute
+                  # value might also contain angle brackets, or
+                  # ampersands that aren't part of entities. We need
+                  # to escape those to XML entities too.
+                  val = self.BARE_AMPERSAND_OR_BRACKET.sub(self._sub_entity, val)
 
-                attrs.append(fmt % (self.toEncoding(key, encoding),
-                                    self.toEncoding(val, encoding)))
-        close = ''
-        closeTag = ''
-        if self.isSelfClosing:
-            close = ' /'
-        else:
-            closeTag = '</%s>' % encodedName
+              attrs.append(fmt % (self.toEncoding(key, encoding),
+                                  self.toEncoding(val, encoding)))
+      close = ''
+      closeTag = ''
+      if self.isSelfClosing:
+        close = ' /'
+      else:
+        closeTag = f'</{encodedName}>'
 
-        indentTag, indentContents = 0, 0
-        if prettyPrint:
-            indentTag = indentLevel
-            space = (' ' * (indentTag-1))
-            indentContents = indentTag + 1
-        contents = self.renderContents(encoding, prettyPrint, indentContents)
-        if self.hidden:
-            s = contents
-        else:
-            s = []
-            attributeString = ''
-            if attrs:
-                attributeString = ' ' + ' '.join(attrs)
-            if prettyPrint:
-                s.append(space)
-            s.append('<%s%s%s>' % (encodedName, attributeString, close))
-            if prettyPrint:
-                s.append("\n")
-            s.append(contents)
-            if prettyPrint and contents and contents[-1] != "\n":
-                s.append("\n")
-            if prettyPrint and closeTag:
-                s.append(space)
-            s.append(closeTag)
-            if prettyPrint and closeTag and self.nextSibling:
-                s.append("\n")
-            s = ''.join(s)
-        return s
+      indentTag, indentContents = 0, 0
+      if prettyPrint:
+          indentTag = indentLevel
+          space = (' ' * (indentTag-1))
+          indentContents = indentTag + 1
+      contents = self.renderContents(encoding, prettyPrint, indentContents)
+      if self.hidden:
+        return contents
+      s = []
+      attributeString = ' ' + ' '.join(attrs) if attrs else ''
+      if prettyPrint:
+          s.append(space)
+      s.append(f'<{encodedName}{attributeString}{close}>')
+      if prettyPrint:
+          s.append("\n")
+      s.append(contents)
+      if prettyPrint:
+        if contents and contents[-1] != "\n":
+          s.append("\n")
+        if closeTag:
+          s.append(space)
+      s.append(closeTag)
+      if prettyPrint and closeTag and self.nextSibling:
+          s.append("\n")
+      return ''.join(s)
 
     def decompose(self):
-        """Recursively destroys the contents of this tree."""
-        contents = [i for i in self.contents]
-        for i in contents:
-            if isinstance(i, Tag):
-                i.decompose()
-            else:
-                i.extract()
-        self.extract()
+      """Recursively destroys the contents of this tree."""
+      contents = list(self.contents)
+      for i in contents:
+          if isinstance(i, Tag):
+              i.decompose()
+          else:
+              i.extract()
+      self.extract()
 
     def prettify(self, encoding=DEFAULT_OUTPUT_ENCODING):
         return self.__str__(encoding, True)
@@ -746,18 +720,15 @@ class Tag(PageElement):
 
     def find(self, name=None, attrs={}, recursive=True, text=None,
              **kwargs):
-        """Return only the first child of this Tag matching the given
+      """Return only the first child of this Tag matching the given
         criteria."""
-        r = None
-        l = self.findAll(name, attrs, recursive, text, 1, **kwargs)
-        if l:
-            r = l[0]
-        return r
+      return (l[0] if (l := self.findAll(name, attrs, recursive, text, 1, **
+                                         kwargs)) else None)
     findChild = find
 
     def findAll(self, name=None, attrs={}, recursive=True, text=None,
                 limit=None, **kwargs):
-        """Extracts a list of Tag objects that match the given
+      """Extracts a list of Tag objects that match the given
         criteria.  You can specify the name of the Tag and any
         attributes you want the Tag to have.
 
@@ -766,10 +737,8 @@ class Tag(PageElement):
         callable that takes a string and returns whether or not the
         string matches for some custom definition of 'matches'. The
         same is true of the tag name."""
-        generator = self.recursiveChildGenerator
-        if not recursive:
-            generator = self.childGenerator
-        return self._findAll(name, attrs, text, limit, generator, **kwargs)
+      generator = self.recursiveChildGenerator if recursive else self.childGenerator
+      return self._findAll(name, attrs, text, limit, generator, **kwargs)
     findChildren = findAll
 
     # Pre-3.x compatibility methods
@@ -785,19 +754,17 @@ class Tag(PageElement):
     #Private methods
 
     def _getAttrMap(self):
-        """Initializes a map representation of this tag's attributes,
+      """Initializes a map representation of this tag's attributes,
         if not already initialized."""
-        if not getattr(self, 'attrMap'):
-            self.attrMap = {}
-            for (key, value) in self.attrs:
-                self.attrMap[key] = value
-        return self.attrMap
+      if not getattr(self, 'attrMap'):
+        self.attrMap = dict(self.attrs)
+      return self.attrMap
 
     #Generator methods
     def childGenerator(self):
-        for i in range(0, len(self.contents)):
-            yield self.contents[i]
-        raise StopIteration
+      for i in range(len(self.contents)):
+        yield self.contents[i]
+      raise StopIteration
 
     def recursiveChildGenerator(self):
         stack = [(self, 0)]
@@ -834,73 +801,61 @@ class SoupStrainer:
         self.text = text
 
     def __str__(self):
-        if self.text:
-            return self.text
-        else:
-            return "%s|%s" % (self.name, self.attrs)
+      return self.text if self.text else f"{self.name}|{self.attrs}"
 
     def searchTag(self, markupName=None, markupAttrs={}):
-        found = None
-        markup = None
-        if isinstance(markupName, Tag):
-            markup = markupName
-            markupAttrs = markup
-        callFunctionWithTagData = callable(self.name) \
-                                and not isinstance(markupName, Tag)
+      found = None
+      markup = None
+      if isinstance(markupName, Tag):
+          markup = markupName
+          markupAttrs = markup
+      callFunctionWithTagData = callable(self.name) \
+                                  and not isinstance(markupName, Tag)
 
-        if (not self.name) \
-               or callFunctionWithTagData \
-               or (markup and self._matches(markup, self.name)) \
-               or (not markup and self._matches(markupName, self.name)):
-            if callFunctionWithTagData:
-                match = self.name(markupName, markupAttrs)
-            else:
-                match = True
-                markupAttrMap = None
-                for attr, matchAgainst in self.attrs.items():
-                    if not markupAttrMap:
-                         if hasattr(markupAttrs, 'get'):
-                            markupAttrMap = markupAttrs
-                         else:
-                            markupAttrMap = {}
-                            for k,v in markupAttrs:
-                                markupAttrMap[k] = v
-                    attrValue = markupAttrMap.get(attr)
-                    if not self._matches(attrValue, matchAgainst):
-                        match = False
-                        break
-            if match:
-                if markup:
-                    found = markup
-                else:
-                    found = markupName
-        return found
+      if (not self.name) \
+                   or callFunctionWithTagData \
+                   or (markup and self._matches(markup, self.name)) \
+                   or (not markup and self._matches(markupName, self.name)):
+        if callFunctionWithTagData:
+          match = self.name(markupName, markupAttrs)
+        else:
+          match = True
+          markupAttrMap = None
+          for attr, matchAgainst in self.attrs.items():
+            if not markupAttrMap:
+              if hasattr(markupAttrs, 'get'):
+                markupAttrMap = markupAttrs
+              else:
+                markupAttrMap = dict(markupAttrs)
+            attrValue = markupAttrMap.get(attr)
+            if not self._matches(attrValue, matchAgainst):
+                match = False
+                break
+        if match:
+          found = markup if markup else markupName
+      return found
 
     def search(self, markup):
-        #print 'looking for %s in %s' % (self, markup)
-        found = None
+      #print 'looking for %s in %s' % (self, markup)
+      found = None
         # If given a list of items, scan it for a text element that
         # matches.
-        if isList(markup) and not isinstance(markup, Tag):
-            for element in markup:
-                if isinstance(element, NavigableString) \
+      if isList(markup) and not isinstance(markup, Tag):
+        for element in markup:
+            if isinstance(element, NavigableString) \
                        and self.search(element):
-                    found = element
-                    break
-        # If it's a Tag, make sure its name or attributes match.
-        # Don't bother with Tags if we're searching for text.
-        elif isinstance(markup, Tag):
-            if not self.text:
-                found = self.searchTag(markup)
-        # If it's text, make sure the text matches.
-        elif isinstance(markup, NavigableString) or \
-                 isString(markup):
-            if self._matches(markup, self.text):
-                found = markup
-        else:
-            raise Exception, "I don't know how to match against a %s" \
-                  % markup.__class__
-        return found
+                found = element
+                break
+      elif isinstance(markup, Tag):
+          if not self.text:
+              found = self.searchTag(markup)
+      elif isinstance(markup, NavigableString) or \
+                   isString(markup):
+          if self._matches(markup, self.text):
+              found = markup
+      else:
+        raise (Exception, f"I don't know how to match against a {markup.__class__}")
+      return found
 
     def _matches(self, markup, matchAgainst):
         #print "Matching %s against %s" % (markup, matchAgainst)
@@ -950,12 +905,12 @@ def isList(l):
            or (type(l) in (types.ListType, types.TupleType))
 
 def isString(s):
-    """Convenience method that works with all 2.x versions of Python
+  """Convenience method that works with all 2.x versions of Python
     to determine whether or not something is stringlike."""
-    try:
-        return isinstance(s, unicode) or isinstance(s, basestring)
-    except NameError:
-        return isinstance(s, str)
+  try:
+    return isinstance(s, (unicode, basestring))
+  except NameError:
+      return isinstance(s, str)
 
 def buildTagMap(default, *args):
     """Turns a list of maps, lists, or scalars into a single map.
@@ -1102,37 +1057,36 @@ class BeautifulStoneSoup(Tag, SGMLParser):
         return self.convert_codepoint(n)
 
     def _feed(self, inDocumentEncoding=None, isHTML=False):
-        # Convert the document to Unicode.
-        markup = self.markup
-        if isinstance(markup, unicode):
-            if not hasattr(self, 'originalEncoding'):
-                self.originalEncoding = None
-        else:
-            dammit = UnicodeDammit\
-                     (markup, [self.fromEncoding, inDocumentEncoding],
-                      smartQuotesTo=self.smartQuotesTo, isHTML=isHTML)
-            markup = dammit.unicode
-            self.originalEncoding = dammit.originalEncoding
-            self.declaredHTMLEncoding = dammit.declaredHTMLEncoding
-        if markup:
-            if self.markupMassage:
-                if not isList(self.markupMassage):
-                    self.markupMassage = self.MARKUP_MASSAGE
-                for fix, m in self.markupMassage:
-                    markup = fix.sub(m, markup)
-                # TODO: We get rid of markupMassage so that the
-                # soup object can be deepcopied later on. Some
-                # Python installations can't copy regexes. If anyone
-                # was relying on the existence of markupMassage, this
-                # might cause problems.
-                del(self.markupMassage)
-        self.reset()
+      # Convert the document to Unicode.
+      markup = self.markup
+      if isinstance(markup, unicode):
+          if not hasattr(self, 'originalEncoding'):
+              self.originalEncoding = None
+      else:
+          dammit = UnicodeDammit\
+                       (markup, [self.fromEncoding, inDocumentEncoding],
+                    smartQuotesTo=self.smartQuotesTo, isHTML=isHTML)
+          markup = dammit.unicode
+          self.originalEncoding = dammit.originalEncoding
+          self.declaredHTMLEncoding = dammit.declaredHTMLEncoding
+      if markup and self.markupMassage:
+        if not isList(self.markupMassage):
+            self.markupMassage = self.MARKUP_MASSAGE
+        for fix, m in self.markupMassage:
+            markup = fix.sub(m, markup)
+        # TODO: We get rid of markupMassage so that the
+        # soup object can be deepcopied later on. Some
+        # Python installations can't copy regexes. If anyone
+        # was relying on the existence of markupMassage, this
+        # might cause problems.
+        del(self.markupMassage)
+      self.reset()
 
-        SGMLParser.feed(self, markup)
-        # Close out any unfinished strings and close all the open tags.
-        self.endData()
-        while self.currentTag.name != self.ROOT_TAG_NAME:
-            self.popTag()
+      SGMLParser.feed(self, markup)
+      # Close out any unfinished strings and close all the open tags.
+      self.endData()
+      while self.currentTag.name != self.ROOT_TAG_NAME:
+          self.popTag()
 
     def __getattr__(self, methodName):
         """This method routes method call requests to either the SGMLParser
@@ -1185,53 +1139,52 @@ class BeautifulStoneSoup(Tag, SGMLParser):
         self.currentTag = self.tagStack[-1]
 
     def endData(self, containerClass=NavigableString):
-        if self.currentData:
-            currentData = u''.join(self.currentData)
-            if (currentData.translate(self.STRIP_ASCII_SPACES) == '' and
-                not set([tag.name for tag in self.tagStack]).intersection(
-                    self.PRESERVE_WHITESPACE_TAGS)):
-                if '\n' in currentData:
-                    currentData = '\n'
-                else:
-                    currentData = ' '
-            self.currentData = []
-            if self.parseOnlyThese and len(self.tagStack) <= 1 and \
-                   (not self.parseOnlyThese.text or \
-                    not self.parseOnlyThese.search(currentData)):
-                return
-            o = containerClass(currentData)
-            o.setup(self.currentTag, self.previous)
-            if self.previous:
-                self.previous.next = o
-            self.previous = o
-            self.currentTag.contents.append(o)
+      if not self.currentData:
+        return
+      currentData = u''.join(self.currentData)
+      if not currentData.translate(self.STRIP_ASCII_SPACES) and not {
+          tag.name
+          for tag in self.tagStack
+      }.intersection(self.PRESERVE_WHITESPACE_TAGS):
+        currentData = '\n' if '\n' in currentData else ' '
+      self.currentData = []
+      if self.parseOnlyThese and len(self.tagStack) <= 1 and \
+                 (not self.parseOnlyThese.text or \
+                  not self.parseOnlyThese.search(currentData)):
+          return
+      o = containerClass(currentData)
+      o.setup(self.currentTag, self.previous)
+      if self.previous:
+          self.previous.next = o
+      self.previous = o
+      self.currentTag.contents.append(o)
 
 
     def _popToTag(self, name, inclusivePop=True):
-        """Pops the tag stack up to and including the most recent
+      """Pops the tag stack up to and including the most recent
         instance of the given tag. If inclusivePop is false, pops the tag
         stack up to but *not* including the most recent instqance of
         the given tag."""
-        #print "Popping to %s" % name
-        if name == self.ROOT_TAG_NAME:
-            return
+      #print "Popping to %s" % name
+      if name == self.ROOT_TAG_NAME:
+          return
 
-        numPops = 0
-        mostRecentTag = None
-        for i in range(len(self.tagStack)-1, 0, -1):
-            if name == self.tagStack[i].name:
-                numPops = len(self.tagStack)-i
-                break
-        if not inclusivePop:
-            numPops = numPops - 1
+      mostRecentTag = None
+      numPops = next(
+          (len(self.tagStack) - i for i in range(len(self.tagStack) - 1, 0, -1)
+           if name == self.tagStack[i].name),
+          0,
+      )
+      if not inclusivePop:
+          numPops = numPops - 1
 
-        for i in range(0, numPops):
-            mostRecentTag = self.popTag()
-        return mostRecentTag
+      for _ in range(numPops):
+        mostRecentTag = self.popTag()
+      return mostRecentTag
 
     def _smartPop(self, name):
 
-        """We need to pop up to the previous tag of this type, unless
+      """We need to pop up to the previous tag of this type, unless
         one of this tag's nesting reset triggers comes between this
         tag and the previous tag of this type, OR unless this tag is a
         generic nesting trigger and another generic nesting trigger
@@ -1247,33 +1200,32 @@ class BeautifulStoneSoup(Tag, SGMLParser):
          <td><tr><td> *<td>* should pop to 'tr', not the first 'td'
         """
 
-        nestingResetTriggers = self.NESTABLE_TAGS.get(name)
-        isNestable = nestingResetTriggers != None
-        isResetNesting = self.RESET_NESTING_TAGS.has_key(name)
-        popTo = None
-        inclusive = True
-        for i in range(len(self.tagStack)-1, 0, -1):
-            p = self.tagStack[i]
-            if (not p or p.name == name) and not isNestable:
-                #Non-nestable tags get popped to the top or to their
-                #last occurance.
-                popTo = name
-                break
-            if (nestingResetTriggers != None
-                and p.name in nestingResetTriggers) \
-                or (nestingResetTriggers == None and isResetNesting
-                    and self.RESET_NESTING_TAGS.has_key(p.name)):
+      nestingResetTriggers = self.NESTABLE_TAGS.get(name)
+      isNestable = nestingResetTriggers != None
+      isResetNesting = self.RESET_NESTING_TAGS.has_key(name)
+      popTo = None
+      inclusive = True
+      for i in range(len(self.tagStack)-1, 0, -1):
+        p = self.tagStack[i]
+        if (not p or p.name == name) and not isNestable:
+            #Non-nestable tags get popped to the top or to their
+            #last occurance.
+            popTo = name
+            break
+        if ((nestingResetTriggers != None and p.name in nestingResetTriggers)
+            or nestingResetTriggers is None and isResetNesting
+            and self.RESET_NESTING_TAGS.has_key(p.name)):
 
-                #If we encounter one of the nesting reset triggers
-                #peculiar to this tag, or we encounter another tag
-                #that causes nesting to reset, pop up to but not
-                #including that tag.
-                popTo = p.name
-                inclusive = False
-                break
-            p = p.parent
-        if popTo:
-            self._popToTag(popTo, inclusive)
+          #If we encounter one of the nesting reset triggers
+          #peculiar to this tag, or we encounter another tag
+          #that causes nesting to reset, pop up to but not
+          #including that tag.
+          popTo = p.name
+          inclusive = False
+          break
+        p = p.parent
+      if popTo:
+          self._popToTag(popTo, inclusive)
 
     def unknown_starttag(self, name, attrs, selfClosing=0):
         #print "Start tag %s: %s" % (name, attrs)
@@ -1307,16 +1259,16 @@ class BeautifulStoneSoup(Tag, SGMLParser):
 
     def unknown_endtag(self, name):
         #print "End tag %s" % name
-        if self.quoteStack and self.quoteStack[-1] != name:
+      if self.quoteStack and self.quoteStack[-1] != name:
             #This is not a real end tag.
             #print "</%s> is not real!" % name
-            self.handle_data('</%s>' % name)
-            return
-        self.endData()
-        self._popToTag(name)
-        if self.quoteStack and self.quoteStack[-1] == name:
-            self.quoteStack.pop()
-            self.literal = (len(self.quoteStack) > 0)
+        self.handle_data(f'</{name}>')
+        return
+      self.endData()
+      self._popToTag(name)
+      if self.quoteStack and self.quoteStack[-1] == name:
+          self.quoteStack.pop()
+          self.literal = (len(self.quoteStack) > 0)
 
     def handle_data(self, data):
         self.currentData.append(data)
@@ -1341,29 +1293,26 @@ class BeautifulStoneSoup(Tag, SGMLParser):
         self._toStringSubclass(text, Comment)
 
     def handle_charref(self, ref):
-        "Handle character references as data."
-        if self.convertEntities:
-            data = unichr(int(ref))
-        else:
-            data = '&#%s;' % ref
-        self.handle_data(data)
+      "Handle character references as data."
+      data = unichr(int(ref)) if self.convertEntities else f'&#{ref};'
+      self.handle_data(data)
 
     def handle_entityref(self, ref):
-        """Handle entity references as data, possibly converting known
+      """Handle entity references as data, possibly converting known
         HTML and/or XML entity references to the corresponding Unicode
         characters."""
-        data = None
-        if self.convertHTMLEntities:
-            try:
-                data = unichr(name2codepoint[ref])
-            except KeyError:
-                pass
+      data = None
+      if self.convertHTMLEntities:
+          try:
+              data = unichr(name2codepoint[ref])
+          except KeyError:
+              pass
 
-        if not data and self.convertXMLEntities:
-                data = self.XML_ENTITIES_TO_SPECIAL_CHARS.get(ref)
+      if not data and self.convertXMLEntities:
+              data = self.XML_ENTITIES_TO_SPECIAL_CHARS.get(ref)
 
-        if not data and self.convertHTMLEntities and \
-            not self.XML_ENTITIES_TO_SPECIAL_CHARS.get(ref):
+      if not data and self.convertHTMLEntities and \
+                not self.XML_ENTITIES_TO_SPECIAL_CHARS.get(ref):
                 # TODO: We've got a problem here. We're told this is
                 # an entity reference, but it's not an XML entity
                 # reference or an HTML entity reference. Nonetheless,
@@ -1380,16 +1329,16 @@ class BeautifulStoneSoup(Tag, SGMLParser):
                 #
                 # The more common case is a misplaced ampersand, so I
                 # escape the ampersand and omit the trailing semicolon.
-                data = "&amp;%s" % ref
-        if not data:
+        data = f"&amp;{ref}"
+      if not data:
             # This case is different from the one above, because we
             # haven't already gone through a supposedly comprehensive
             # mapping of entities to Unicode characters. We might not
             # have gone through any mapping at all. So the chances are
             # very high that this is a real entity, and not a
             # misplaced ampersand.
-            data = "&%s;" % ref
-        self.handle_data(data)
+        data = f"&{ref};"
+      self.handle_data(data)
 
     def handle_decl(self, data):
         "Handle DOCTYPEs and the like as Declaration objects."
@@ -1522,51 +1471,51 @@ class BeautifulSoup(BeautifulStoneSoup):
     CHARSET_RE = re.compile("((^|;)\s*charset=)([^;]*)", re.M)
 
     def start_meta(self, attrs):
-        """Beautiful Soup can detect a charset included in a META tag,
+      """Beautiful Soup can detect a charset included in a META tag,
         try to convert the document to that charset, and re-parse the
         document from the beginning."""
-        httpEquiv = None
-        contentType = None
-        contentTypeIndex = None
-        tagNeedsEncodingSubstitution = False
+      httpEquiv = None
+      contentType = None
+      contentTypeIndex = None
+      tagNeedsEncodingSubstitution = False
 
-        for i in range(0, len(attrs)):
-            key, value = attrs[i]
-            key = key.lower()
-            if key == 'http-equiv':
-                httpEquiv = value
-            elif key == 'content':
-                contentType = value
-                contentTypeIndex = i
+      for i in range(len(attrs)):
+        key, value = attrs[i]
+        key = key.lower()
+        if key == 'http-equiv':
+            httpEquiv = value
+        elif key == 'content':
+            contentType = value
+            contentTypeIndex = i
 
-        if httpEquiv and contentType: # It's an interesting meta tag.
-            match = self.CHARSET_RE.search(contentType)
-            if match:
-                if (self.declaredHTMLEncoding is not None or
+      if httpEquiv and contentType: # It's an interesting meta tag.
+        match = self.CHARSET_RE.search(contentType)
+        if match:
+          if (self.declaredHTMLEncoding is not None or
                     self.originalEncoding == self.fromEncoding):
                     # An HTML encoding was sniffed while converting
                     # the document to Unicode, or an HTML encoding was
                     # sniffed during a previous pass through the
                     # document, or an encoding was specified
                     # explicitly and it worked. Rewrite the meta tag.
-                    def rewrite(match):
-                        return match.group(1) + "%SOUP-ENCODING%"
-                    newAttr = self.CHARSET_RE.sub(rewrite, contentType)
-                    attrs[contentTypeIndex] = (attrs[contentTypeIndex][0],
-                                               newAttr)
-                    tagNeedsEncodingSubstitution = True
-                else:
-                    # This is our first pass through the document.
-                    # Go through it again with the encoding information.
-                    newCharset = match.group(3)
-                    if newCharset and newCharset != self.originalEncoding:
-                        self.declaredHTMLEncoding = newCharset
-                        self._feed(self.declaredHTMLEncoding)
-                        raise StopParsing
-                    pass
-        tag = self.unknown_starttag("meta", attrs)
-        if tag and tagNeedsEncodingSubstitution:
-            tag.containsSubstitutions = True
+            def rewrite(match):
+              return f"{match.group(1)}%SOUP-ENCODING%"
+
+            newAttr = self.CHARSET_RE.sub(rewrite, contentType)
+            attrs[contentTypeIndex] = (attrs[contentTypeIndex][0],
+                                       newAttr)
+            tagNeedsEncodingSubstitution = True
+          else:
+            # This is our first pass through the document.
+            # Go through it again with the encoding information.
+            newCharset = match.group(3)
+            if newCharset and newCharset != self.originalEncoding:
+                self.declaredHTMLEncoding = newCharset
+                self._feed(self.declaredHTMLEncoding)
+                raise StopParsing
+      tag = self.unknown_starttag("meta", attrs)
+      if tag and tagNeedsEncodingSubstitution:
+          tag.containsSubstitutions = True
 
 class StopParsing(Exception):
     pass
@@ -1749,15 +1698,12 @@ class UnicodeDammit:
         if not u: self.originalEncoding = None
 
     def _subMSChar(self, orig):
-        """Changes a MS smart quote character to an XML or HTML
+      """Changes a MS smart quote character to an XML or HTML
         entity."""
-        sub = self.MS_CHARS.get(orig)
-        if type(sub) == types.TupleType:
-            if self.smartQuotesTo == 'xml':
-                sub = '&#x%s;' % sub[1]
-            else:
-                sub = '&%s;' % sub[0]
-        return sub
+      sub = self.MS_CHARS.get(orig)
+      if type(sub) == types.TupleType:
+        sub = f'&#x{sub[1]};' if self.smartQuotesTo == 'xml' else f'&{sub[0]};'
+      return sub
 
     def _convertFrom(self, proposed):
         proposed = self.find_codec(proposed)
@@ -1788,96 +1734,94 @@ class UnicodeDammit:
         return self.markup
 
     def _toUnicode(self, data, encoding):
-        '''Given a string and its encoding, decodes the string into Unicode.
+      '''Given a string and its encoding, decodes the string into Unicode.
         %encoding is a string recognized by encodings.aliases'''
 
-        # strip Byte Order Mark (if present)
-        if (len(data) >= 4) and (data[:2] == '\xfe\xff') \
-               and (data[2:4] != '\x00\x00'):
-            encoding = 'utf-16be'
-            data = data[2:]
-        elif (len(data) >= 4) and (data[:2] == '\xff\xfe') \
+      # strip Byte Order Mark (if present)
+      if (len(data) >= 4) and (data[:2] == '\xfe\xff') \
                  and (data[2:4] != '\x00\x00'):
-            encoding = 'utf-16le'
-            data = data[2:]
-        elif data[:3] == '\xef\xbb\xbf':
-            encoding = 'utf-8'
-            data = data[3:]
-        elif data[:4] == '\x00\x00\xfe\xff':
-            encoding = 'utf-32be'
-            data = data[4:]
-        elif data[:4] == '\xff\xfe\x00\x00':
-            encoding = 'utf-32le'
-            data = data[4:]
-        newdata = unicode(data, encoding)
-        return newdata
+          encoding = 'utf-16be'
+          data = data[2:]
+      elif (len(data) >= 4) and (data[:2] == '\xff\xfe') \
+                   and (data[2:4] != '\x00\x00'):
+          encoding = 'utf-16le'
+          data = data[2:]
+      elif data[:3] == '\xef\xbb\xbf':
+          encoding = 'utf-8'
+          data = data[3:]
+      elif data[:4] == '\x00\x00\xfe\xff':
+          encoding = 'utf-32be'
+          data = data[4:]
+      elif data[:4] == '\xff\xfe\x00\x00':
+          encoding = 'utf-32le'
+          data = data[4:]
+      return unicode(data, encoding)
 
     def _detectEncoding(self, xml_data, isHTML=False):
-        """Given a document, tries to detect its XML encoding."""
-        xml_encoding = sniffed_xml_encoding = None
-        try:
-            if xml_data[:4] == '\x4c\x6f\xa7\x94':
-                # EBCDIC
-                xml_data = self._ebcdic_to_ascii(xml_data)
-            elif xml_data[:4] == '\x00\x3c\x00\x3f':
-                # UTF-16BE
-                sniffed_xml_encoding = 'utf-16be'
-                xml_data = unicode(xml_data, 'utf-16be').encode('utf-8')
-            elif (len(xml_data) >= 4) and (xml_data[:2] == '\xfe\xff') \
+      """Given a document, tries to detect its XML encoding."""
+      xml_encoding = sniffed_xml_encoding = None
+      try:
+        if xml_data[:4] == '\x4c\x6f\xa7\x94':
+          # EBCDIC
+          xml_data = self._ebcdic_to_ascii(xml_data)
+        elif xml_data[:4] == '\x00\x3c\x00\x3f':
+            # UTF-16BE
+            sniffed_xml_encoding = 'utf-16be'
+            xml_data = unicode(xml_data, 'utf-16be').encode('utf-8')
+        elif (len(xml_data) >= 4) and (xml_data[:2] == '\xfe\xff') \
                      and (xml_data[2:4] != '\x00\x00'):
-                # UTF-16BE with BOM
-                sniffed_xml_encoding = 'utf-16be'
-                xml_data = unicode(xml_data[2:], 'utf-16be').encode('utf-8')
-            elif xml_data[:4] == '\x3c\x00\x3f\x00':
-                # UTF-16LE
-                sniffed_xml_encoding = 'utf-16le'
-                xml_data = unicode(xml_data, 'utf-16le').encode('utf-8')
-            elif (len(xml_data) >= 4) and (xml_data[:2] == '\xff\xfe') and \
+            # UTF-16BE with BOM
+            sniffed_xml_encoding = 'utf-16be'
+            xml_data = unicode(xml_data[2:], 'utf-16be').encode('utf-8')
+        elif xml_data[:4] == '\x3c\x00\x3f\x00':
+            # UTF-16LE
+            sniffed_xml_encoding = 'utf-16le'
+            xml_data = unicode(xml_data, 'utf-16le').encode('utf-8')
+        elif (len(xml_data) >= 4) and (xml_data[:2] == '\xff\xfe') and \
                      (xml_data[2:4] != '\x00\x00'):
-                # UTF-16LE with BOM
-                sniffed_xml_encoding = 'utf-16le'
-                xml_data = unicode(xml_data[2:], 'utf-16le').encode('utf-8')
-            elif xml_data[:4] == '\x00\x00\x00\x3c':
-                # UTF-32BE
-                sniffed_xml_encoding = 'utf-32be'
-                xml_data = unicode(xml_data, 'utf-32be').encode('utf-8')
-            elif xml_data[:4] == '\x3c\x00\x00\x00':
-                # UTF-32LE
-                sniffed_xml_encoding = 'utf-32le'
-                xml_data = unicode(xml_data, 'utf-32le').encode('utf-8')
-            elif xml_data[:4] == '\x00\x00\xfe\xff':
-                # UTF-32BE with BOM
-                sniffed_xml_encoding = 'utf-32be'
-                xml_data = unicode(xml_data[4:], 'utf-32be').encode('utf-8')
-            elif xml_data[:4] == '\xff\xfe\x00\x00':
-                # UTF-32LE with BOM
-                sniffed_xml_encoding = 'utf-32le'
-                xml_data = unicode(xml_data[4:], 'utf-32le').encode('utf-8')
-            elif xml_data[:3] == '\xef\xbb\xbf':
-                # UTF-8 with BOM
-                sniffed_xml_encoding = 'utf-8'
-                xml_data = unicode(xml_data[3:], 'utf-8').encode('utf-8')
-            else:
-                sniffed_xml_encoding = 'ascii'
-                pass
-        except:
-            xml_encoding_match = None
-        xml_encoding_match = re.compile(
-            '^<\?.*encoding=[\'"](.*?)[\'"].*\?>').match(xml_data)
-        if not xml_encoding_match and isHTML:
-            regexp = re.compile('<\s*meta[^>]+charset=([^>]*?)[;\'">]', re.I)
-            xml_encoding_match = regexp.search(xml_data)
-        if xml_encoding_match is not None:
-            xml_encoding = xml_encoding_match.groups()[0].lower()
-            if isHTML:
-                self.declaredHTMLEncoding = xml_encoding
-            if sniffed_xml_encoding and \
-               (xml_encoding in ('iso-10646-ucs-2', 'ucs-2', 'csunicode',
-                                 'iso-10646-ucs-4', 'ucs-4', 'csucs4',
-                                 'utf-16', 'utf-32', 'utf_16', 'utf_32',
-                                 'utf16', 'u16')):
-                xml_encoding = sniffed_xml_encoding
-        return xml_data, xml_encoding, sniffed_xml_encoding
+            # UTF-16LE with BOM
+            sniffed_xml_encoding = 'utf-16le'
+            xml_data = unicode(xml_data[2:], 'utf-16le').encode('utf-8')
+        elif xml_data[:4] == '\x00\x00\x00\x3c':
+            # UTF-32BE
+            sniffed_xml_encoding = 'utf-32be'
+            xml_data = unicode(xml_data, 'utf-32be').encode('utf-8')
+        elif xml_data[:4] == '\x3c\x00\x00\x00':
+            # UTF-32LE
+            sniffed_xml_encoding = 'utf-32le'
+            xml_data = unicode(xml_data, 'utf-32le').encode('utf-8')
+        elif xml_data[:4] == '\x00\x00\xfe\xff':
+            # UTF-32BE with BOM
+            sniffed_xml_encoding = 'utf-32be'
+            xml_data = unicode(xml_data[4:], 'utf-32be').encode('utf-8')
+        elif xml_data[:4] == '\xff\xfe\x00\x00':
+            # UTF-32LE with BOM
+            sniffed_xml_encoding = 'utf-32le'
+            xml_data = unicode(xml_data[4:], 'utf-32le').encode('utf-8')
+        elif xml_data[:3] == '\xef\xbb\xbf':
+            # UTF-8 with BOM
+            sniffed_xml_encoding = 'utf-8'
+            xml_data = unicode(xml_data[3:], 'utf-8').encode('utf-8')
+        else:
+          sniffed_xml_encoding = 'ascii'
+      except:
+          xml_encoding_match = None
+      xml_encoding_match = re.compile(
+          '^<\?.*encoding=[\'"](.*?)[\'"].*\?>').match(xml_data)
+      if not xml_encoding_match and isHTML:
+          regexp = re.compile('<\s*meta[^>]+charset=([^>]*?)[;\'">]', re.I)
+          xml_encoding_match = regexp.search(xml_data)
+      if xml_encoding_match is not None:
+          xml_encoding = xml_encoding_match.groups()[0].lower()
+          if isHTML:
+              self.declaredHTMLEncoding = xml_encoding
+          if sniffed_xml_encoding and \
+                 (xml_encoding in ('iso-10646-ucs-2', 'ucs-2', 'csunicode',
+                               'iso-10646-ucs-4', 'ucs-4', 'csucs4',
+                               'utf-16', 'utf-32', 'utf_16', 'utf_32',
+                               'utf16', 'u16')):
+              xml_encoding = sniffed_xml_encoding
+      return xml_data, xml_encoding, sniffed_xml_encoding
 
 
     def find_codec(self, charset):
